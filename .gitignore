@@ -1,0 +1,137 @@
+# ============================================================
+# Mat(a)Mu — .gitignore
+# OpenCV AI Competition 2026 · Blaz Labs
+# ============================================================
+
+# --- BAHAN MENTAH (tidak masuk repo) ---
+Road-Asset-Intelligence-Blueprint/
+Mat_a_Mu_Project_Proposal.pdf
+Mat_a_Mu_Technical_Sharpening.md
+cover-matamu.png
+cover-matamu-landscape.png
+
+# --- CREDENTIALS & API KEYS (WAJIB diabaikan) ---
+.env
+.env.*
+*.env
+secrets.json
+credentials.json
+api_keys.json
+aws-credentials.json
+
+# API key files
+*api_key*
+*apikey*
+*secret*
+*credential*
+
+# LiteLLM config (berisi model access & endpoint)
+litellm_config.*
+proxy_config.*
+
+# --- AWS / CLOUD ---
+.aws/
+aws-credentials.csv
+*.pem
+*.ppk
+*.key
+id_rsa*
+id_ecdsa*
+
+# --- ENVIRONMENT & DEPENDENCIES ---
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+pip-wheel-info/
+.installed.cfg
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+
+# --- DJANGO ---
+*.sqlite3
+local_settings.py
+db.sqlite3-journal
+media/
+staticfiles/
+
+# --- DATABASE ---
+*.db
+*.sqlite
+*.sql.bak
+
+# --- IDE & EDITOR ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- OS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# --- TESTING & COVERAGE ---
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+.coverage.*
+cache/
+
+# --- MODEL FILES (besar, tidak masuk repo) ---
+*.onnx
+*.pt
+*.pth
+*.weights
+*.h5
+models/
+weights/
+
+# --- UPLOADS & EVIDENCE ---
+uploads/
+evidence/
+*.jpg.bak
+*.png.bak
+
+# --- LOGS ---
+*.log
+logs/
+*.pid
+
+# --- DOCKER (local overrides) ---
+docker-compose.override.yml
+docker-compose.local.yml
+
+# --- WORKBUDDY AI INTERNAL ---
+.workbuddy-ai/
+
+# --- TEMP & CACHE ---
+*.tmp
+*.temp
+.cache/
+tmp/
