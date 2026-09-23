@@ -1,0 +1,32 @@
+{
+  "runner": "agentic_scenario_runner.py",
+  "timestamp": "2026-09-23T13:27:39.841293Z",
+  "sprint": 4,
+  "all_pass": true,
+  "scenarios": [
+    {
+      "scenario": "A",
+      "label": "High confidence + high trust \u2192 auto-publish",
+      "result": "published",
+      "pass": true
+    },
+    {
+      "scenario": "B",
+      "label": "Low YOLO confidence \u2192 pending_verification (human review)",
+      "result": "pending_verification",
+      "pass": true
+    },
+    {
+      "scenario": "C",
+      "label": "3+ reports same area \u2192 recurring flag + follow-up alert",
+      "result": "published",
+      "pass": true
+    },
+    {
+      "scenario": "D",
+      "label": "SFace detects faces \u2192 blur applied before publish",
+      "result": "published",
+      "pass": true
+    }
+  ]
+}

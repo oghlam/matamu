@@ -25,15 +25,15 @@ def _client():
 
 
 def haiku_summary(detected_class: str, confidence: float, severity: str, location: str = "") -> str:
-    """Haiku 4.5: one-sentence condition summary from detection results."""
+    """Haiku 4.5: one-sentence condition summary from detection results (English)."""
     if not LITELLM_BASE_URL:
         # ponytail: mock when no proxy configured (local dev)
-        return f"Terdeteksi {detected_class} dengan tingkat keyakinan {confidence:.0%}, tingkat keparahan {severity}."
+        return f"Detected {detected_class} with {confidence:.0%} confidence, {severity} severity."
 
     prompt = (
-        f"Ringkas kondisi jalan dalam 1 kalimat bahasa Indonesia (max 20 kata). "
-        f"Deteksi: {detected_class}, confidence: {confidence:.0%}, severity: {severity}. "
-        f"Lokasi: {location or 'tidak diketahui'}."
+        f"Summarize the road condition in 1 English sentence (max 20 words). "
+        f"Detection: {detected_class}, confidence: {confidence:.0%}, severity: {severity}. "
+        f"Location: {location or 'unknown'}."
     )
     try:
         client = _client()
@@ -46,7 +46,7 @@ def haiku_summary(detected_class: str, confidence: float, severity: str, locatio
         return resp.choices[0].message.content.strip()
     except Exception as e:
         logger.warning("haiku_summary failed: %s — using mock", e)
-        return f"Terdeteksi {detected_class} dengan tingkat keyakinan {confidence:.0%}, tingkat keparahan {severity}."
+        return f"Detected {detected_class} with {confidence:.0%} confidence, {severity} severity."
 
 
 def gemini_severity(detected_class: str, confidence: float, img_bytes: bytes = None) -> dict:
@@ -60,10 +60,10 @@ def gemini_severity(detected_class: str, confidence: float, img_bytes: bytes = N
         return {"severity": sev, "reasoning": f"Mock: confidence {confidence:.0%} → {sev}"}
 
     text_prompt = (
-        f"Kamu adalah analis infrastruktur jalan. "
-        f"Deteksi: {detected_class} (confidence {confidence:.0%}). "
-        f"Tentukan severity: low/medium/high dan alasan singkat (1 kalimat). "
-        f"Jawab JSON: {{\"severity\": \"...\", \"reasoning\": \"...\"}}"
+        f"You are a road infrastructure analyst. "
+        f"Detection: {detected_class} (confidence {confidence:.0%}). "
+        f"Decide severity: low/medium/high with a one-sentence reason. "
+        f"Answer in JSON: {{\"severity\": \"...\", \"reasoning\": \"...\"}}"
     )
     messages = [{"role": "user", "content": [{"type": "text", "text": text_prompt}]}]
 
@@ -99,11 +99,11 @@ def haiku_dedup_hint(detected_class: str, nearby_count: int, location: str = "")
     if nearby_count < 3:
         return ""
     if not LITELLM_BASE_URL:
-        return f"Sudah ada {nearby_count} laporan {detected_class} di area ini — kemungkinan lokasi yang sama."
+        return f"{nearby_count} existing {detected_class} reports in this area — possibly the same location."
 
     prompt = (
-        f"Ada {nearby_count} laporan {detected_class} dalam radius 50m di {location or 'area ini'}. "
-        f"Tulis 1 kalimat Indonesia (max 15 kata) sebagai peringatan duplikasi untuk operator."
+        f"There are {nearby_count} {detected_class} reports within a 50m radius at {location or 'this area'}. "
+        f"Write 1 English sentence (max 15 words) as a duplication warning for the operator."
     )
     try:
         client = _client()
@@ -116,4 +116,4 @@ def haiku_dedup_hint(detected_class: str, nearby_count: int, location: str = "")
         return resp.choices[0].message.content.strip()
     except Exception as e:
         logger.warning("haiku_dedup_hint failed: %s", e)
-        return f"Sudah ada {nearby_count} laporan {detected_class} di area ini."
+        return f"{nearby_count} existing {detected_class} reports in this area."

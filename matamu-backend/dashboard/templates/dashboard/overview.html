@@ -1,0 +1,588 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Overview — Mat(a)Mu{% endblock %}
+
+{% block head_extra %}
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  @keyframes pin-pulse {
+    0%   { transform: scale(.55); opacity: .55; }
+    70%  { transform: scale(1.25); opacity: 0; }
+    100% { transform: scale(1.25); opacity: 0; }
+  }
+  .pin-pulse-ring { animation: pin-pulse 1.5s ease-out infinite; }
+</style>
+{% endblock %}
+
+{% block content %}
+{# ── CANVAS-FIRST WORKSPACE (DESIGN-UI §4, §11; ref: dash-ui.webp) ── #}
+{# Mobile: vertical flow (map → KPI → cards). Desktop: map fills shell, controls float. #}
+<div class="min-h-full flex flex-col md:block md:h-full gap-3 p-3 md:p-0">
+
+  <!-- ═══ MAP CANVAS — the application (§14: workspace is the app) ═══ -->
+  <div id="map" class="relative h-[44vh] shrink-0 rounded-xl overflow-hidden md:rounded-none md:absolute md:inset-0 md:h-auto"></div>
+
+  <!-- ═══ FLOATING CONTROL BAR — Search | Filter | Filter (§12) ═══ -->
+  <div class="md:absolute md:top-4 md:left-4 md:right-4 z-10
+              bg-surface/90 backdrop-blur rounded-xl shadow-float px-3 py-2
+              flex flex-wrap items-center gap-2">
+    <div class="relative flex-1 min-w-[140px]">
+      <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 text-tm" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      <input id="f-search" type="text" placeholder="Search location…"
+             class="w-full !pl-8 !bg-white/80">
+    </div>
+    <select id="f-class" aria-label="Filter class">
+      <option value="">All Types</option>
+      <option value="pothole">Pothole</option>
+      <option value="longitudinal_crack">Longitudinal Crack</option>
+      <option value="alligator_crack">Alligator Crack</option>
+      <option value="rutting">Rutting</option>
+      <option value="flooding">Flooding</option>
+      <option value="surface_degradation">Surface Degradation</option>
+    </select>
+    <select id="f-sev" aria-label="Filter severity">
+      <option value="">All Severities</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
+    <span id="f-count" class="text-xs text-tm whitespace-nowrap"></span>
+    <a href="{% url 'dashboard:observations' %}" class="text-xs font-semibold text-accent whitespace-nowrap hover:underline">List →</a>
+  </div>
+
+  <!-- ═══ FLOATING KPI PILLS — dark, semantic accent only (§8, §10D) ═══ -->
+  <div class="md:absolute md:top-[76px] md:left-1/2 md:-translate-x-1/2 z-10
+              flex gap-2 overflow-x-auto md:max-w-[90%] px-0.5 py-0.5">
+    <div class="flex items-baseline gap-2 bg-dark text-white rounded-xl px-4 py-2 shadow-float shrink-0">
+      <span class="text-xl font-bold text-accent leading-none">{{ stats.total }}</span>
+      <span class="text-[11px] text-white/70 whitespace-nowrap">Total Reports</span>
+    </div>
+    <div class="flex items-baseline gap-2 bg-dark text-white rounded-xl px-4 py-2 shadow-float shrink-0">
+      <span class="text-xl font-bold text-white leading-none">{{ stats.avg_trust }}</span>
+      <span class="text-[11px] text-white/70 whitespace-nowrap">Avg Trust</span>
+    </div>
+    <div class="flex items-baseline gap-2 bg-dark text-white rounded-xl px-4 py-2 shadow-float shrink-0">
+      <span class="text-xl font-bold text-warn leading-none">{{ stats.pending_verification }}</span>
+      <span class="text-[11px] text-white/70 whitespace-nowrap">Needs Review</span>
+    </div>
+  </div>
+
+  <!-- ═══ ROUTE INFO PILL — hidden until Direction pressed ═══ -->
+  <div id="route-pill" class="hidden md:absolute md:top-[132px] md:left-1/2 md:-translate-x-1/2 z-10
+              bg-dark text-white rounded-xl px-4 py-2 shadow-float
+              flex items-center gap-3 whitespace-nowrap">
+    <span id="route-text" class="text-xs font-semibold">…</span>
+    <button onclick="clearRoute()" aria-label="Close route"
+            class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+      <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" d="M18 6L6 18M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- ═══ BOTTOM CONTEXTUAL CARDS (§10D, §15, §16) ═══ -->
+  <div class="md:absolute md:bottom-4 md:left-4 md:right-[240px] z-10
+              grid grid-cols-1 md:grid-cols-[1fr_300px] gap-3 pb-16 md:pb-0">
+
+    <!-- A. Location detail — updates when a marker is clicked -->
+    <div class="bg-surface rounded-xl shadow-float p-4">
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <p class="text-[11px] font-medium text-tm uppercase tracking-wide">Location</p>
+          <p id="loc-title" class="text-sm font-bold text-tp break-words">
+            {% if focus_obs %}{{ focus_obs.location_label|default:"Location" }}{% else %}No data yet{% endif %}
+          </p>
+          <p class="text-xs text-ts break-words flex items-start gap-1.5">
+            <span id="loc-cls-icon" class="inline-flex shrink-0 mt-[1px]">{% if focus_obs %}{% include "dashboard/_defect_icon.html" with type=focus_obs.detected_class size=16 %}{% endif %}</span><span id="loc-sub-text" class="capitalize">{% if focus_obs %}{{ focus_obs.detected_class }} · {{ focus_obs.created_at|date:"d M Y" }}{% endif %}</span>
+          </p>
+        </div>
+        <span id="loc-badge">
+          {% if focus_obs %}
+            {% if focus_obs.severity == "high" or focus_obs.severity == "severe" or focus_obs.severity == "critical" %}
+              <span class="badge-bad">{{ focus_obs.severity|capfirst }}</span>
+            {% elif focus_obs.severity == "low" %}
+              <span class="badge-ok">{{ focus_obs.severity|capfirst }}</span>
+            {% else %}
+              <span class="badge-warn">{{ focus_obs.severity|capfirst }}</span>
+            {% endif %}
+          {% endif %}
+        </span>
+      </div>
+      <div class="grid grid-cols-3 gap-2 mt-3">
+        <div class="bg-ok/10 rounded-lg px-2 py-2 text-center">
+          <p class="text-[10px] font-medium text-ts">Trust</p>
+          <p id="loc-trust" class="text-lg font-bold text-[#3E8E51] leading-tight">
+            {% if focus_obs %}{% widthratio focus_obs.trust_score 1 100 %}{% else %}—{% endif %}
+          </p>
+          <div class="flex gap-[3px] mt-1.5" aria-hidden="true">
+            <span id="bar-trust-0" class="h-1 flex-1 rounded-full bg-bad/20"></span>
+            <span id="bar-trust-1" class="h-1 flex-1 rounded-full bg-warn/20"></span>
+            <span id="bar-trust-2" class="h-1 flex-1 rounded-full bg-ok/20"></span>
+          </div>
+        </div>
+        <div class="bg-accent/10 rounded-lg px-2 py-2 text-center">
+          <p class="text-[10px] font-medium text-ts">Confidence</p>
+          <p id="loc-conf" class="text-lg font-bold text-[#9A6B0A] leading-tight">
+            {% if focus_obs %}{% widthratio focus_obs.confidence 1 100 %}{% else %}—{% endif %}
+          </p>
+          <div class="flex gap-[3px] mt-1.5" aria-hidden="true">
+            <span id="bar-conf-0" class="h-1 flex-1 rounded-full bg-bad/20"></span>
+            <span id="bar-conf-1" class="h-1 flex-1 rounded-full bg-warn/20"></span>
+            <span id="bar-conf-2" class="h-1 flex-1 rounded-full bg-ok/20"></span>
+          </div>
+        </div>
+        <div class="bg-s2 rounded-lg px-2 py-2 text-center">
+          <p class="text-[10px] font-medium text-ts">Reported</p>
+          <p id="loc-date" class="text-lg font-bold text-tp leading-tight">
+            {% if focus_obs %}{{ focus_obs.created_at|date:"d M" }}{% else %}—{% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- B. Evidence photo — visual card, updates on marker click.
+         Toggle "AI" overlays YOLO bounding boxes on the raw photo. -->
+    <div class="bg-surface rounded-xl shadow-float overflow-hidden">
+      <div id="ev-wrap" class="relative{% if focus_obs.evidence_url|slice:":4" == "http" or focus_obs.evidence_url|slice:":1" == "/" %}{% else %} hidden{% endif %}">
+        <img id="ev-img"{% if focus_obs.evidence_url|slice:":4" == "http" or focus_obs.evidence_url|slice:":1" == "/" %} src="{{ focus_obs.evidence_url }}"{% endif %} alt="Evidence photo"
+             class="w-full h-44 md:h-full md:min-h-[168px] md:max-h-[190px] object-cover">
+        <svg id="ev-overlay" class="absolute inset-0 hidden w-full h-full pointer-events-none"></svg>
+        <button id="ev-toggle" type="button" aria-label="Toggle AI detection overlay"
+                class="absolute top-2 right-2 text-[10px] font-bold px-2 py-1 rounded-lg bg-dark/70 text-white/80 hover:text-white transition-colors">AI</button>
+      </div>
+      <div id="ev-empty" class="{% if focus_obs.evidence_url|slice:":4" == "http" or focus_obs.evidence_url|slice:":1" == "/" %}hidden {% endif %}w-full h-44 md:h-full md:min-h-[168px] flex flex-col items-center justify-center gap-1 bg-s2/60 text-tm">
+          <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <p class="text-xs">No evidence photo</p>
+        </div>
+    </div>
+
+  </div>
+
+  <!-- C. Severity insight — floating right rail (desktop), stacked card (mobile) -->
+  <div class="bg-surface rounded-xl shadow-float p-4 z-10
+              flex flex-row items-center gap-4
+              md:absolute md:right-4 md:bottom-4 md:w-[208px] md:flex-col md:items-stretch">
+    <div class="relative w-24 h-24 shrink-0 md:mx-auto">
+      <div class="absolute inset-0 rounded-full"
+           style="background:conic-gradient(#D96868 0 {{ arc_high }}%, #E8A629 {{ arc_high }}% {{ arc_mid_end }}%, #67B57A {{ arc_mid_end }}% 100%)"></div>
+      <div class="absolute inset-[10px] rounded-full bg-surface flex flex-col items-center justify-center">
+        <span class="text-xl font-bold text-tp leading-none">{{ stats.published }}</span>
+        <span class="text-[10px] text-tm">reports</span>
+      </div>
+    </div>
+    <div class="min-w-0 flex-1 md:w-full">
+      <p class="text-[11px] font-medium text-tm uppercase tracking-wide mb-1.5 md:text-center">Severity</p>
+      <div class="space-y-1 text-xs">
+        <p class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-bad shrink-0"></span><span class="text-ts">High</span><span class="ml-auto font-semibold text-tp pl-3">{{ sev_high }}</span></p>
+        <p class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-warn shrink-0"></span><span class="text-ts">Medium</span><span class="ml-auto font-semibold text-tp pl-3">{{ sev_mid }}</span></p>
+        <p class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-ok shrink-0"></span><span class="text-ts">Low</span><span class="ml-auto font-semibold text-tp pl-3">{{ sev_low }}</span></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ALL = JSON.parse('{{ map_obs_json|escapejs }}');
+const SEV_COLOR = { critical:'#D96868', severe:'#D96868', high:'#D96868',
+                    moderate:'#E8A629', medium:'#E8A629', low:'#67B57A' };
+const SEV_NORM = { high:'high', severe:'high', critical:'high',
+                   moderate:'medium', medium:'medium', low:'low' };
+function capFirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : '—'; }
+
+// Esri World Imagery + place & road labels — free, no API key
+// (attribution required, shown automatically)
+const LIGHT = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+const ESRI_ATTR = 'Esri, Maxar, Earthstar Geographics';
+const SAT = {
+  version: 8,
+  sources: {
+    esri: {
+      type: 'raster',
+      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: ESRI_ATTR,
+    },
+    ref_places: {
+      type: 'raster',
+      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: ESRI_ATTR,
+    },
+    ref_roads: {
+      type: 'raster',
+      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: ESRI_ATTR,
+    },
+  },
+  layers: [
+    { id: 'esri', type: 'raster', source: 'esri' },
+    { id: 'labels-places', type: 'raster', source: 'ref_places' },
+    { id: 'labels-roads', type: 'raster', source: 'ref_roads' },
+  ],
+};
+
+const map = new maplibregl.Map({
+  container: 'map',
+  style: LIGHT,
+  center: [112.718, -7.446],
+  zoom: 11,
+});
+map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
+map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }), 'top-right');
+
+// Satellite toggle — custom control, markers survive setStyle
+let satOn = false;
+class SatToggle {
+  onAdd() {
+    const g = document.createElement('div');
+    g.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    this._btn = document.createElement('button');
+    this._btn.type = 'button';
+    this._btn.title = 'Satellite imagery';
+    this._btn.setAttribute('aria-label', 'Toggle satellite imagery');
+    this._btn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>`;
+    this._btn.style.cssText = 'display:flex;align-items:center;justify-content:center;color:#111311';
+    this._btn.onclick = () => {
+      satOn = !satOn;
+      map.setStyle(satOn ? SAT : LIGHT);
+      this._btn.style.background = satOn ? '#050605' : '';
+      this._btn.style.color = satOn ? '#F4A900' : '#111311';
+      this._btn.title = satOn ? 'Back to map' : 'Satellite imagery';
+    };
+    g.appendChild(this._btn);
+    return g;
+  }
+  onRemove() { this._btn.parentNode.remove(); }
+}
+map.addControl(new SatToggle(), 'top-right');
+
+let markers = [];   // [{ m, id, o }]
+let activeId = null;
+
+// Normal dot vs active target (pulsing ring + crosshair)
+function dotHTML(col) {
+  return `<div style="width:12px;height:12px;border-radius:50%;background:${col};` +
+    `border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer"></div>`;
+}
+function targetHTML(col) {
+  return `<div style="position:relative;width:30px;height:30px;cursor:pointer">` +
+    `<span class="pin-pulse-ring" style="position:absolute;inset:0;border-radius:50%;background:${col}"></span>` +
+    `<span style="position:absolute;inset:7px;border-radius:50%;background:${col};` +
+    `border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35)"></span>` +
+    `<svg style="position:absolute;inset:0;margin:auto" width="30" height="30" fill="none" stroke="#fff" stroke-width="1.6" viewBox="0 0 30 30">` +
+    `<path stroke-linecap="round" d="M15 1v6M15 23v6M1 15h6M23 15h6"/></svg></div>`;
+}
+function paintActive() {
+  markers.forEach(({ m, id, o }) => {
+    const col = SEV_COLOR[o.severity] || '#949893';
+    m.getElement().innerHTML = id === activeId ? targetHTML(col) : dotHTML(col);
+  });
+}
+
+// ── AI bbox overlay on evidence photo (toggle) ──
+const BOX_COLORS = { pothole: '#00E5FF', longitudinal_crack: '#E8A629',
+  alligator_crack: '#E8A629', rutting: '#E8A629', flooding: '#4A90D9',
+  surface_degradation: '#949893' };
+const evImg = document.getElementById('ev-img');
+const evOverlay = document.getElementById('ev-overlay');
+const evToggle = document.getElementById('ev-toggle');
+const evWrap = document.getElementById('ev-wrap');
+const evEmpty = document.getElementById('ev-empty');
+let currentBoxes = [];
+
+function drawOverlay() {
+  const nw = evImg.naturalWidth, nh = evImg.naturalHeight;
+  const cw = evImg.clientWidth, ch = evImg.clientHeight;
+  if (!nw || !nh || !cw || !ch) return;
+  evOverlay.setAttribute('width', cw);
+  evOverlay.setAttribute('height', ch);
+  // object-cover math: scale to fill, centered crop
+  const scale = Math.max(cw / nw, ch / nh);
+  const offX = (cw - nw * scale) / 2, offY = (ch - nh * scale) / 2;
+  let html = '';
+  currentBoxes.forEach(b => {
+    const bb = b.bbox || [];
+    if (bb.length < 4) return;
+    const x = bb[0] * scale + offX, y = bb[1] * scale + offY;
+    const w = bb[2] * scale, h = bb[3] * scale;
+    const col = BOX_COLORS[b.class] || '#fff';
+    const label = String(b.class || '').replace(/_/g, ' ') + ' ' + Math.round((b.confidence || 0) * 100) + '%';
+    const ty = (y - 5 < 8) ? (y + h - 5) : (y - 5);
+    html += `<g><rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="none" stroke="${col}" stroke-width="2"/>` +
+      `<text x="${(x + 3).toFixed(1)}" y="${ty.toFixed(1)}" fill="${col}" font-size="10" font-weight="700" font-family="'JetBrains Mono',monospace">${label}</text></g>`;
+  });
+  evOverlay.innerHTML = html;
+}
+function setToggle(on) {
+  if (on) {
+    drawOverlay();
+    evOverlay.classList.remove('hidden');
+    evToggle.classList.add('bg-accent', 'text-dark');
+    evToggle.classList.remove('bg-dark/70', 'text-white/80');
+  } else {
+    evOverlay.classList.add('hidden');
+    evToggle.classList.remove('bg-accent', 'text-dark');
+    evToggle.classList.add('bg-dark/70', 'text-white/80');
+  }
+}
+evToggle.addEventListener('click', () => {
+  if (!currentBoxes.length) return;
+  setToggle(evOverlay.classList.contains('hidden'));
+});
+evImg.addEventListener('load', () => { if (!evOverlay.classList.contains('hidden')) drawOverlay(); });
+window.addEventListener('resize', () => { if (!evOverlay.classList.contains('hidden')) drawOverlay(); });
+
+// ── Zone bars: red-yellow-green quality indicator ──
+// Zones mirror the publish gates: red = below auto-publish gate
+// (a published report sitting in red = system anomaly, investigate).
+const TRUST_GATES = [0.65, 0.85];   // red <0.65 · yellow <0.85 · green ≥0.85
+const CONF_GATES = [0.50, 0.80];    // red <0.50 · yellow <0.80 · green ≥0.80
+function paintZone(prefix, v, gates) {
+  const val = (v == null) ? 0 : v;
+  const idx = val < gates[0] ? 0 : val < gates[1] ? 1 : 2;
+  const colors = ['bg-bad', 'bg-warn', 'bg-ok'];
+  for (let i = 0; i < 3; i++) {
+    document.getElementById(prefix + '-' + i).className =
+      'h-1 flex-1 rounded-full ' + (i === idx ? colors[i] : colors[i] + '/20');
+  }
+}
+
+// ── Defect icons: fetched once from static, cached (single artwork source) ──
+const ICON_FILES = { pothole: 'pothole.svg', longitudinal_crack: 'longitudinal-crack.svg',
+  alligator_crack: 'alligator-crack.svg', rutting: 'rutting.svg',
+  flooding: 'flooding.svg', surface_degradation: 'surface-degradation.svg' };
+const ICON_SVGS = {};
+Object.entries(ICON_FILES).forEach(([cls, f]) => {
+  fetch('/static/dashboard/icons/' + f)
+    .then(r => r.ok ? r.text() : '')
+    .then(t => { ICON_SVGS[cls] = t; })
+    .catch(() => {});
+});
+function defectIcon(cls, size) {
+  const svg = ICON_SVGS[cls];
+  if (!svg) return '';
+  return `<span class="defect-icon" data-size="${size || 16}">${svg}</span>`;
+}
+
+// ── Contextual propagation (§15): marker click → detail card (§16) ──
+function selectObs(o) {
+  document.getElementById('loc-title').textContent = (o.location_label || 'Location').slice(0, 60);
+  document.getElementById('loc-cls-icon').innerHTML = defectIcon(o.detected_class, 16);
+  document.getElementById('loc-sub-text').textContent =
+    `${o.detected_class || '—'} · ${o.created_at ? o.created_at.slice(0, 10) : ''}`;
+  document.getElementById('loc-trust').textContent = Math.round((o.trust_score || 0) * 100);
+  document.getElementById('loc-conf').textContent = Math.round((o.confidence || 0) * 100);
+  document.getElementById('loc-date').textContent = o.created_at ? o.created_at.slice(5, 10) : '—';
+  paintZone('bar-trust', o.trust_score, TRUST_GATES);
+  paintZone('bar-conf', o.confidence, CONF_GATES);
+  const sev = o.severity || '—';
+  const cls = sev === 'high' || sev === 'severe' || sev === 'critical' ? 'badge-bad'
+            : sev === 'low' ? 'badge-ok' : 'badge-warn';
+  document.getElementById('loc-badge').innerHTML = `<span class="${cls}">${capFirst(sev)}</span>`;
+  // evidence photo follows the selected marker (http URL or local /media path)
+  const u = o.evidence_url || '';
+  currentBoxes = o.all_detections || [];
+  setToggle(false);
+  evToggle.style.display = currentBoxes.length ? '' : 'none';
+  if (u.startsWith('http') || u.startsWith('/')) {
+    evImg.src = u;
+    evWrap.classList.remove('hidden');
+    evEmpty.classList.add('hidden');
+  } else {
+    evImg.removeAttribute('src');
+    evWrap.classList.add('hidden');
+    evEmpty.classList.remove('hidden');
+  }
+}
+
+function filtered() {
+  const q = document.getElementById('f-search').value.trim().toLowerCase();
+  const c = document.getElementById('f-class').value;
+  const s = document.getElementById('f-sev').value;
+  return ALL.filter(o => {
+    if (q && !(o.location_label || '').toLowerCase().includes(q)) return false;
+    if (c && o.detected_class !== c) return false;
+    if (s && (SEV_NORM[o.severity] || o.severity) !== s) return false;
+    return true;
+  });
+}
+
+function renderMarkers() {
+  markers.forEach(({ m }) => m.remove());
+  markers = [];
+  hideDirTip();
+  const rows = filtered();
+  document.getElementById('f-count').textContent = `${rows.length} points`;
+  rows.forEach(o => {
+    if (o.lat == null || o.lng == null) return;
+    const el = document.createElement('div');
+    el.addEventListener('click', (e) => { e.stopPropagation(); activeId = o.id; paintActive(); selectObs(o); openDirTip(o); });
+    const m = new maplibregl.Marker({ element: el }).setLngLat([o.lng, o.lat]).addTo(map);
+    markers.push({ m, id: o.id, o });
+  });
+  paintActive();
+}
+
+// ── Tooltip per marker: coordinates + Direction button ──
+// Custom div (not a MapLibre Popup: the built-in popup is instantly closed
+// by the map-click of that same click, so it never becomes visible)
+const tipEl = document.createElement('div');
+tipEl.style.cssText = 'position:absolute;z-index:20;display:none;white-space:nowrap;' +
+  'transform:translate(-50%,calc(-100% - 16px));background:#F8F8F3;border-radius:12px;' +
+  'box-shadow:0 16px 40px rgba(0,0,0,.10);padding:8px 10px;';
+let tipObs = null;
+document.getElementById('map').appendChild(tipEl);
+
+function placeTip() {
+  if (!tipObs) return;
+  const p = map.project([tipObs.lng, tipObs.lat]);
+  tipEl.style.left = p.x + 'px';
+  tipEl.style.top = p.y + 'px';
+}
+function openDirTip(o) {
+  tipObs = o;
+  tipEl.innerHTML = `<div style="font:11px/1.5 'JetBrains Mono',monospace;color:#111311">` +
+    `<div style="display:flex;align-items:center;gap:8px">` +
+    `<p style="margin:0;font-weight:700">${o.lat.toFixed(5)}, ${o.lng.toFixed(5)}</p>` +
+    `<button onclick="hideDirTip()" aria-label="Close" style="border:0;background:none;` +
+    `color:#949893;cursor:pointer;font-size:12px;line-height:1">✕</button></div>` +
+    `<p style="margin:2px 0 8px;color:#686C68;max-width:180px;white-space:nowrap;` +
+    `overflow:hidden;text-overflow:ellipsis">${o.location_label || ''}</p>` +
+    `<div style="display:flex;align-items:center;gap:5px;margin:0 0 8px;color:#686C68">` +
+    `${defectIcon(o.detected_class, 16)}<span style="text-transform:capitalize">${o.detected_class || ''}</span></div>` +
+    `<button onclick="routeTo(${o.id})" style="display:inline-flex;align-items:center;gap:4px;` +
+    `background:#F4A900;color:#050605;border:0;border-radius:8px;padding:5px 10px;` +
+    `font:600 11px 'JetBrains Mono',monospace;cursor:pointer">Direction →</button></div>`;
+  tipEl.style.display = 'block';
+  placeTip();
+}
+function hideDirTip() { tipObs = null; tipEl.style.display = 'none'; }
+window.hideDirTip = hideDirTip;
+map.on('move', placeTip);
+
+// ── Direction: my position → target via public OSRM (free, no key) ──
+let _routeGeometry = null;   // keep for re-draw after setStyle
+let _myMarker = null;        // current position marker
+
+function showRoutePill(text) {
+  document.getElementById('route-pill').classList.remove('hidden');
+  document.getElementById('route-text').textContent = text;
+}
+
+function _drawRoute() {
+  if (!_routeGeometry) return;
+  if (!map.isStyleLoaded()) {
+        map.once('idle', _drawRoute);
+    return;
+  }
+  if (map.getLayer('route-line')) map.removeLayer('route-line');
+  if (map.getSource('route-line')) map.removeSource('route-line');
+  map.addSource('route-line', { type: 'geojson', data: _routeGeometry });
+  map.addLayer({
+    id: 'route-line', type: 'line', source: 'route-line',
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': '#F4A900', 'line-width': 5, 'line-opacity': 0.9 },
+  });
+  }
+
+// Re-draw route when style swapped (satellite ↔ light)
+map.on('style.load', () => { if (_routeGeometry) _drawRoute(); });
+
+function clearRoute() {
+  _routeGeometry = null;
+  if (map.getLayer('route-line')) map.removeLayer('route-line');
+  if (map.getSource('route-line')) map.removeSource('route-line');
+  if (_myMarker) { _myMarker.remove(); _myMarker = null; }
+  document.getElementById('route-pill').classList.add('hidden');
+}
+window.clearRoute = clearRoute;
+
+window.routeTo = function(id) {
+  const o = ALL.find(r => r.id === id);
+  if (!o) return;
+  showRoutePill('Locating you…');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const myLng = pos.coords.longitude;
+      const myLat = pos.coords.latitude;
+
+      // Place "you are here" marker
+      if (_myMarker) _myMarker.remove();
+      const el = document.createElement('div');
+      el.style.cssText = 'width:16px;height:16px;border-radius:50%;' +
+        'background:#4A90D9;border:3px solid #fff;' +
+        'box-shadow:0 0 0 4px rgba(74,144,217,.35),0 2px 8px rgba(0,0,0,.3)';
+      _myMarker = new maplibregl.Marker({ element: el })
+        .setLngLat([myLng, myLat])
+        .addTo(map);
+
+      const from = myLng + ',' + myLat;
+      const to   = o.lng + ',' + o.lat;
+      fetch('https://router.project-osrm.org/route/v1/driving/' + from + ';' + to + '?overview=full&geometries=geojson')
+        .then(r => { if (!r.ok) throw new Error('osrm ' + r.status); return r.json(); })
+        .then(data => {
+          const route = data.routes && data.routes[0];
+          if (!route) throw new Error('no route');
+
+          // Store geometry FIRST, then clear old, then draw
+          _routeGeometry = route.geometry;
+          
+          // Remove old layer/source if any
+          if (map.getLayer('route-line')) map.removeLayer('route-line');
+          if (map.getSource('route-line')) map.removeSource('route-line');
+
+          // Draw immediately (style already loaded at this point)
+          _drawRoute();
+
+          // Fit bounds to include both endpoints + route
+          const coords = route.geometry.coordinates;
+          const b = coords.reduce(
+            (bb, c) => bb.extend(c),
+            new maplibregl.LngLatBounds(coords[0], coords[0])
+          );
+          b.extend([myLng, myLat]);
+          b.extend([o.lng, o.lat]);
+          map.fitBounds(b, { padding: 80, maxZoom: 16 });
+
+          const km  = (route.distance / 1000).toFixed(1).replace('.', ',');
+          const min = Math.max(1, Math.round(route.duration / 60));
+          showRoutePill(km + ' km · ±' + min + ' min');
+        })
+        .catch(err => {
+          console.error('OSRM error:', err);
+          showRoutePill('Failed to load route');
+        });
+    },
+    err => {
+      console.error('GPS error:', err);
+      showRoutePill('GPS unavailable');
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+};
+
+['f-search', 'f-class', 'f-sev'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderMarkers);
+  document.getElementById(id).addEventListener('change', renderMarkers);
+});
+
+map.on('load', () => {
+  if (ALL.length) activeId = ALL[0].id;   // sync with server-rendered focus card
+  const f = ALL.find(r => r.id === activeId);
+  currentBoxes = (f && f.all_detections) || [];
+  evToggle.style.display = currentBoxes.length ? '' : 'none';
+  if (f) { paintZone('bar-trust', f.trust_score, TRUST_GATES); paintZone('bar-conf', f.confidence, CONF_GATES); }
+  renderMarkers();
+  if (ALL.length) map.flyTo({ center: [ALL[0].lng, ALL[0].lat], zoom: 12 });
+});
+</script>
+{% endblock %}

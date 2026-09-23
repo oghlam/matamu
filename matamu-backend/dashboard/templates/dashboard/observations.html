@@ -1,0 +1,115 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Reports — Mat(a)Mu{% endblock %}
+{% block page_title %}Report List{% endblock %}
+
+{% block header_actions %}
+<span class="text-xs text-tm">{{ observations|length }} results</span>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filter bar -->
+<form method="get" class="card px-4 py-3 flex flex-wrap items-center gap-2">
+  <select name="status" aria-label="Filter status">
+    <option value="" {% if not status_f %}selected{% endif %}>All Statuses</option>
+    <option value="published"          {% if status_f == "published" %}selected{% endif %}>Published</option>
+    <option value="pending_verification" {% if status_f == "pending_verification" %}selected{% endif %}>Needs Review</option>
+    <option value="acknowledged"       {% if status_f == "acknowledged" %}selected{% endif %}>Acknowledged</option>
+    <option value="resolved"           {% if status_f == "resolved" %}selected{% endif %}>Resolved</option>
+  </select>
+  <select name="severity" aria-label="Filter severity">
+    <option value="" {% if not severity_f %}selected{% endif %}>All Severities</option>
+    <option value="high"     {% if severity_f == "high" %}selected{% endif %}>High</option>
+    <option value="medium" {% if severity_f == "medium" %}selected{% endif %}>Medium</option>
+    <option value="low"      {% if severity_f == "low" %}selected{% endif %}>Low</option>
+  </select>
+  <select name="cls" aria-label="Filter class">
+    <option value="" {% if not class_f %}selected{% endif %}>All Classes</option>
+    <option value="pothole"              {% if class_f == "pothole" %}selected{% endif %}>Pothole</option>
+    <option value="longitudinal_crack"   {% if class_f == "longitudinal_crack" %}selected{% endif %}>Longitudinal Crack</option>
+    <option value="alligator_crack"      {% if class_f == "alligator_crack" %}selected{% endif %}>Alligator Crack</option>
+    <option value="rutting"              {% if class_f == "rutting" %}selected{% endif %}>Rutting</option>
+    <option value="flooding"             {% if class_f == "flooding" %}selected{% endif %}>Flooding</option>
+    <option value="surface_degradation"  {% if class_f == "surface_degradation" %}selected{% endif %}>Surface Degradation</option>
+  </select>
+  <button type="submit" class="btn-primary">Filter</button>
+  {% if status_f or severity_f or class_f %}
+  <a href="{% url 'dashboard:observations' %}" class="btn-ghost">Reset</a>
+  {% endif %}
+</form>
+
+<!-- Table: horizontal scroll on small screens, address wraps (never truncated) -->
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm min-w-[760px] md:min-w-0">
+      <thead>
+        <tr class="border-b border-gray-100 text-left">
+          <th class="px-4 py-3 text-[11px] font-semibold text-tm uppercase tracking-wide whitespace-nowrap">#</th>
+          <th class="px-4 py-3 text-[11px] font-semibold text-tm uppercase tracking-wide">Location</th>
+          <th class="px-4 py-3 text-[11px] font-semibold text-tm uppercase tracking-wide whitespace-nowrap">Class</th>
+          <th class="px-4 py-3 text-[11px] font-semibold text-tm uppercase tracking-wide whitespace-nowrap">Severity</th>
+          <th class="px-4 py-3 text-[11px] font-semibold text-tm uppercase tracking-wide whitespace-nowrap">Trust</th>
+          <th class="px-4 py-3 text-[11px] font-semibold text-tm uppercase tracking-wide whitespace-nowrap">Status</th>
+          <th class="px-4 py-3 text-[11px] font-semibold text-tm uppercase tracking-wide whitespace-nowrap">Date</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        {% for obs in observations %}
+        <tr class="hover:bg-s2/40 transition-colors">
+          <td class="px-4 py-3 text-tm text-xs whitespace-nowrap">{{ obs.id }}</td>
+          <td class="px-4 py-3 min-w-[180px]">
+            <p class="font-medium text-tp text-[13px] leading-snug break-words">
+              {{ obs.location_label|default:"—" }}
+            </p>
+            <p class="text-xs text-tm mt-0.5 whitespace-nowrap">{{ obs.lat|floatformat:4 }}, {{ obs.lng|floatformat:4 }}</p>
+          </td>
+          <td class="px-4 py-3 text-ts whitespace-nowrap">
+            <span class="inline-flex items-center gap-1.5">
+              {% include "dashboard/_defect_icon.html" with type=obs.detected_class size=16 %}
+              <span class="capitalize">{{ obs.detected_class }}</span>
+            </span>
+          </td>
+          <td class="px-4 py-3 whitespace-nowrap">
+            {% if obs.severity == "high" or obs.severity == "critical" or obs.severity == "severe" %}
+              <span class="badge-bad">{{ obs.severity|capfirst }}</span>
+            {% elif obs.severity == "moderate" or obs.severity == "medium" %}
+              <span class="badge-warn">{{ obs.severity|capfirst }}</span>
+            {% else %}
+              <span class="badge-ok">{{ obs.severity|capfirst }}</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 whitespace-nowrap">
+            <div class="flex items-center gap-2">
+              <div class="w-16 h-1.5 rounded-full bg-s2 overflow-hidden shrink-0">
+                <div class="h-full rounded-full
+                  {% if obs.trust_score >= 0.7 %}bg-ok{% elif obs.trust_score >= 0.4 %}bg-warn{% else %}bg-bad{% endif %}"
+                  style="width:{% widthratio obs.trust_score 1 100 %}%">
+                </div>
+              </div>
+              <span class="text-xs font-semibold text-tp">{% widthratio obs.trust_score 1 100 %}</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 whitespace-nowrap">
+            {% if obs.status == "published" %}
+              <span class="badge-ok">{{ obs.status|capfirst }}</span>
+            {% elif obs.status == "pending_verification" %}
+              <span class="badge-warn">Pending</span>
+            {% elif obs.status == "acknowledged" %}
+              <span class="badge-accent">{{ obs.status|capfirst }}</span>
+            {% else %}
+              <span class="badge-muted">{{ obs.status|capfirst }}</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-xs text-tm whitespace-nowrap">{{ obs.created_at|date:"d M Y" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="px-4 py-12 text-center text-ts text-sm">No reports found</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}Mat(a)Mu Admin{% endblock %}
+
+{% block extrastyle %}
+<link rel="icon" type="image/png" href="{% static 'dashboard/favicon.png' %}">
+<link rel="stylesheet" href="{% static 'dashboard/admin-theme.css' %}">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap">
+{% endblock %}
+
+{% block branding %}
+<a href="{% url 'admin:index' %}" class="brand">
+  <img src="{% static 'dashboard/logo.png' %}" alt="Mat(a)Mu">
+  <span>Mat(a)Mu <em>Admin</em></span>
+</a>
+{% endblock %}
+
+{% block nav-global %}
+<a href="/dashboard/" class="nav-external" target="_blank" rel="noopener">Operator Dashboard ↗</a>
+{{ block.super }}
+{% endblock %}

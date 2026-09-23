@@ -1,0 +1,54 @@
+{
+  "timestamp": "2026-09-23T13:27:39.839942Z",
+  "phase": "agentic_loop",
+  "input": {
+    "detected_class": "pothole",
+    "confidence": 0.78,
+    "trust": 0.83,
+    "severity": "high",
+    "faces_blurred": 2,
+    "nearby_count": 0
+  },
+  "perception": {
+    "high_confidence": true,
+    "high_trust": true,
+    "is_recurring": false,
+    "privacy_ok": true,
+    "typesafe_used": true,
+    "typesafe_severity_confidence": 0.78,
+    "typesafe_photo_quality": 0.82,
+    "typesafe_is_recurring": 0.1
+  },
+  "decision": {
+    "status": "published",
+    "reason": "TypeSafe severity confidence=0.78 >= 0.7 — auto-publish",
+    "routing": "typesafe"
+  },
+  "action": {
+    "actions": [
+      "status_set_published",
+      "high_severity_alert_queued"
+    ]
+  },
+  "output": {
+    "final_status": "published"
+  },
+  "typesafe_eval": {
+    "severity": {
+      "level": "high",
+      "score": 2.0,
+      "confidence": 0.78
+    },
+    "damage_class": {
+      "level": "pothole",
+      "confidence": 1.0
+    },
+    "urgency": {
+      "level": "high",
+      "score": 2.0,
+      "confidence": 0.8
+    },
+    "photo_quality_ok": 0.82,
+    "is_recurring_noul": 0.1
+  }
+}

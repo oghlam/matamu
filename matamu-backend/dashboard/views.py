@@ -1,0 +1,143 @@
+import json
+
+from django.contrib.auth.decorators import login_required, permission_required
+from django.db.models import Avg, Count
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
+
+from observations.models import FollowUp, Observation
+
+
+def _base_stats():
+    qs = Observation.objects.all()
+    by_status = dict(qs.values_list("status").annotate(n=Count("id")).values_list("status", "n"))
+    by_class = list(
+        qs.values("detected_class").annotate(n=Count("id")).order_by("-n")
+    )
+    avg_trust = qs.aggregate(v=Avg("trust_score"))["v"] or 0
+    return {
+        "total": qs.count(),
+        "published": by_status.get("published", 0),
+        "pending_verification": by_status.get("pending_verification", 0),
+        "acknowledged": by_status.get("acknowledged", 0),
+        "resolved": by_status.get("resolved", 0),
+        "avg_trust": round(avg_trust, 2),
+        "by_class": by_class,
+    }
+
+
+@login_required
+def overview(request):
+    stats = _base_stats()
+    # recent 50 published for map
+    map_rows = list(
+        Observation.objects.filter(status="published")
+        .order_by("-created_at")[:50]
+        .values("id", "lat", "lng", "detected_class", "severity",
+                "location_label", "trust_score", "confidence", "created_at",
+                "evidence_url", "all_detections")
+    )
+    # JSON-serialize for JS (datetime → isoformat)
+    for r in map_rows:
+        if r.get("created_at"):
+            r["created_at"] = r["created_at"].isoformat()
+    # focus = most recent published → Location detail card
+    focus_obs = (
+        Observation.objects.filter(status="published")
+        .order_by("-created_at")
+        .first()
+    )
+    # severity distribution for arc card
+    pub = Observation.objects.filter(status="published")
+    sev_high = pub.filter(severity__in=["high", "severe", "critical"]).count()
+    sev_mid = pub.filter(severity__in=["moderate", "medium"]).count()
+    sev_low = pub.filter(severity="low").count()
+    # cumulative stops for conic-gradient arc (guard divide-by-zero)
+    denom = max(stats["published"], 1)
+    arc_high = round(sev_high / denom * 100)
+    arc_mid_end = round((sev_high + sev_mid) / denom * 100)
+    return render(request, "dashboard/overview.html", {
+        "stats": stats,
+        "map_obs_json": json.dumps(map_rows),
+        "focus_obs": focus_obs,
+        "sev_high": sev_high,
+        "sev_mid": sev_mid,
+        "sev_low": sev_low,
+        "arc_high": arc_high,
+        "arc_mid_end": arc_mid_end,
+        "page": "overview",
+    })
+
+
+@login_required
+def observations(request):
+    qs = Observation.objects.order_by("-created_at")
+    status_f = request.GET.get("status", "")
+    severity_f = request.GET.get("severity", "")
+    class_f = request.GET.get("cls", "")
+    if status_f:
+        qs = qs.filter(status=status_f)
+    if severity_f in ("moderate", "medium"):
+        qs = qs.filter(severity__in=["moderate", "medium"])
+    elif severity_f:
+        qs = qs.filter(severity=severity_f)
+    if class_f:
+        qs = qs.filter(detected_class=class_f)
+    return render(request, "dashboard/observations.html", {
+        "observations": qs[:200],
+        "status_f": status_f,
+        "severity_f": severity_f,
+        "class_f": class_f,
+        "page": "observations",
+    })
+
+
+@login_required
+def iqe_queue(request):
+    pending = Observation.objects.filter(status="pending_verification").order_by("created_at")
+    return render(request, "dashboard/iqe.html", {
+        "pending": pending,
+        "page": "iqe",
+    })
+
+
+@login_required
+@require_POST
+@permission_required("observations.can_moderate_iqe", raise_exception=True)
+def iqe_action(request, pk):
+    obs = get_object_or_404(Observation, pk=pk)
+    action = request.POST.get("action")
+    if action == "accept":
+        obs.status = "published"
+    elif action == "reject":
+        obs.status = "rejected"
+    obs.save(update_fields=["status"])
+    return redirect("dashboard:iqe")
+
+
+@login_required
+def followup(request):
+    active = Observation.objects.filter(
+        status__in=["published", "acknowledged"]
+    ).order_by("-created_at")[:100]
+    return render(request, "dashboard/followup.html", {
+        "observations": active,
+        "page": "followup",
+    })
+
+
+@login_required
+@require_POST
+@permission_required("observations.change_observation", raise_exception=True)
+def followup_action(request, pk):
+    obs = get_object_or_404(Observation, pk=pk)
+    action = request.POST.get("action")
+    if action == "acknowledge":
+        obs.status = "acknowledged"
+        obs.save(update_fields=["status"])
+        FollowUp.objects.create(observation=obs, status="acknowledged")
+    elif action == "resolve":
+        obs.status = "resolved"
+        obs.save(update_fields=["status"])
+        FollowUp.objects.create(observation=obs, status="resolved")
+    return redirect("dashboard:followup")

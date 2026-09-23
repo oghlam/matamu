@@ -2,6 +2,8 @@
 import logging
 import tempfile
 import os
+import time
+from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
@@ -15,9 +17,27 @@ from .llm import haiku_summary, gemini_severity, haiku_dedup_hint
 from .geocoding import reverse_geocode
 from .agentic import run_agentic_loop
 from .typesafe_eval import evaluate_observation
+from .auth import verify_google_token, BYPASS_AUTH
 
 logger = logging.getLogger(__name__)
 api = NinjaAPI(title="Mat(a)Mu API", version="1.0.0", docs_url="/docs")
+
+# ── Rate limiting (simple in-memory, per IP) ─────────────────────────────────
+# ponytail: in-memory is fine for single-process demo; use Redis for multi-worker
+_rate_store: dict[str, list[float]] = defaultdict(list)
+RATE_LIMIT = 10        # requests
+RATE_WINDOW = 60.0     # seconds
+REPORTER_RATE_LIMIT = 5  # stricter per-reporter limit (anti bot-flooding)
+
+def _check_rate(key: str, limit: int = RATE_LIMIT) -> bool:
+    """Return True if request is allowed."""
+    now = time.monotonic()
+    history = _rate_store[key]
+    _rate_store[key] = [t for t in history if now - t < RATE_WINDOW]
+    if len(_rate_store[key]) >= limit:
+        return False
+    _rate_store[key].append(now)
+    return True
 
 
 # ── Health ──────────────────────────────────────────────────────────────────
@@ -32,10 +52,24 @@ def ping(request):
 @api.post("/v1/capture")
 def capture(request, lat: float, lng: float,
             gps_accuracy: Optional[float] = None,
+            id_token: Optional[str] = None,
             file: UploadedFile = File(...)):
     """
-    Full pipeline: upload → CV → SFace blur → S3 → Bedrock → Agentic → DB.
+    Full pipeline: auth → upload → CV → SFace blur → S3 → Bedrock → Agentic → DB.
+    Requires Google sign-in (id_token). Bots without a verified Google
+    identity are rejected with 401.
     """
+    ip = request.META.get("REMOTE_ADDR", "unknown")
+    if not BYPASS_AUTH and not _check_rate("ip:" + ip):
+        return api.create_response(request, {"error": "Rate limit exceeded. Max 10 captures per minute."}, status=429)
+
+    # 0. Reporter identity (Google OAuth) — required
+    try:
+        reporter_sub, reporter_email, reporter_name = verify_google_token(id_token)
+    except ValueError as e:
+        return api.create_response(request, {"error": str(e)}, status=401)
+    if not BYPASS_AUTH and not _check_rate("reporter:" + reporter_sub, limit=REPORTER_RATE_LIMIT):
+        return api.create_response(request, {"error": "Too many reports. Max 5 captures per minute per account."}, status=429)
     # 1. Save uploaded file to temp
     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
         for chunk in file.chunks():
@@ -99,7 +133,7 @@ def capture(request, lat: float, lng: float,
             ts_result["is_recurring"] = 0.9 if nearby_count >= 3 else ts_result["is_recurring"]
 
         # 8. Agentic loop (perception → decision → action) with TypeSafe confidence gating
-        status = run_agentic_loop(
+        status, review_reason = run_agentic_loop(
             detected_class=detected_class,
             confidence=confidence,
             trust=cv_result["trust"],
@@ -124,12 +158,16 @@ def capture(request, lat: float, lng: float,
             all_detections=detections,
             faces_blurred=faces_blurred,
             typesafe_eval=ts_result if ts_result.get("typesafe_used") else {},
+            reporter_sub=reporter_sub,
+            reporter_email=reporter_email,
+            reporter_name=reporter_name,
+            review_reason=review_reason if status == "pending_verification" else "",
         )
 
         if nearby_count >= 3:
             FollowUp.objects.create(observation=obs, status="recurring_flagged")
 
-        logger.info("capture OK obs=%s class=%s trust=%.2f status=%s", obs.id, detected_class, cv_result["trust"], status)
+        logger.info("capture OK obs=%s class=%s trust=%.2f status=%s reporter=%s", obs.id, detected_class, cv_result["trust"], status, reporter_email)
         return {
             "id": obs.id,
             "status": obs.status,
@@ -138,6 +176,8 @@ def capture(request, lat: float, lng: float,
             "detected_class": detected_class,
             "confidence": confidence,
             "summary": summary,
+            "review_reason": obs.review_reason,
+            "reporter_name": reporter_name,
             "location": location_label,
             "lat": lat,
             "lng": lng,
@@ -165,7 +205,8 @@ def capture(request, lat: float, lng: float,
 
 @api.get("/v1/observations")
 def list_observations(request, status: str = None, detected_class: str = None,
-                      severity: str = None, limit: int = 100):
+                      severity: str = None, limit: int = 100,
+                      id_token: str = None):
     qs = Observation.objects.all().order_by("-created_at")
     if status:
         qs = qs.filter(status=status)
@@ -173,16 +214,31 @@ def list_observations(request, status: str = None, detected_class: str = None,
         qs = qs.filter(detected_class=detected_class)
     if severity:
         qs = qs.filter(severity=severity)
+    if id_token:
+        # "My reports": only this reporter's observations (401 if token bad)
+        try:
+            sub, _, _ = verify_google_token(id_token)
+        except ValueError as e:
+            return api.create_response(request, {"error": str(e)}, status=401)
+        qs = qs.filter(reporter_sub=sub)
     return [_obs_dict(o) for o in qs[:limit]]
 
 
-@api.get("/v1/observations/{obs_id}")
-def get_observation(request, obs_id: int):
+# ── Auth ────────────────────────────────────────────────────────────────────
+
+from ninja import Schema
+
+class GoogleAuthIn(Schema):
+    id_token: str
+
+@api.post("/v1/auth/google")
+def auth_google(request, data: GoogleAuthIn):
+    """Verify a Google ID token from the PWA. Returns reporter profile."""
     try:
-        o = Observation.objects.get(id=obs_id)
-        return _obs_dict(o, detail=True)
-    except Observation.DoesNotExist:
-        return api.create_response(request, {"error": "not found"}, status=404)
+        sub, email, name = verify_google_token(data.id_token)
+    except ValueError as e:
+        return api.create_response(request, {"error": str(e)}, status=401)
+    return {"sub": sub, "email": email, "name": name}
 
 
 @api.get("/v1/observations/nearby")
@@ -194,6 +250,15 @@ def nearby(request, lat: float, lng: float, radius_m: float = 50):
     )
     return [{"id": o.id, "class": o.detected_class, "lat": o.lat, "lng": o.lng,
              "severity": o.severity, "status": o.status} for o in qs]
+
+
+@api.get("/v1/observations/{obs_id}")
+def get_observation(request, obs_id: int):
+    try:
+        o = Observation.objects.get(id=obs_id)
+        return _obs_dict(o, detail=True)
+    except Observation.DoesNotExist:
+        return api.create_response(request, {"error": "not found"}, status=404)
 
 
 @api.post("/v1/observations/{obs_id}/followup")
@@ -213,11 +278,17 @@ def add_followup(request, obs_id: int, status: str):
 @api.get("/v1/stats")
 def stats(request):
     from django.db.models import Count, Avg
+    qs = Observation.objects
     return {
-        "total": Observation.objects.count(),
-        "by_status": list(Observation.objects.values("status").annotate(n=Count("id"))),
-        "by_class": list(Observation.objects.values("detected_class").annotate(n=Count("id"))),
-        "avg_trust": Observation.objects.aggregate(v=Avg("trust_score"))["v"],
+        "total": qs.count(),
+        "by_status": list(qs.values("status").annotate(n=Count("id"))),
+        "by_class": list(qs.values("detected_class").annotate(n=Count("id"))),
+        "avg_trust": qs.aggregate(v=Avg("trust_score"))["v"],
+        "published": qs.filter(status="published").count(),
+        "pending_verification": qs.filter(status="pending_verification").count(),
+        "agentic_traces": len(list((
+            __import__("pathlib").Path(__file__).resolve().parents[2] / "docs" / "agentic-traces"
+        ).glob("trace_*.json"))),
     }
 
 
@@ -235,6 +306,8 @@ def _obs_dict(o, detail=False):
         "summary": o.summary,
         "location": getattr(o, "location_label", ""),
         "evidence_url": o.evidence_url,
+        "review_reason": getattr(o, "review_reason", ""),
+        "reporter_name": getattr(o, "reporter_name", ""),
         "created_at": o.created_at,
     }
     if detail:

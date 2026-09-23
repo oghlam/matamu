@@ -1,0 +1,53 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+<div class="mm-stats">
+  <div class="card mm-stat accent">
+    <div class="n">{{ mm_total|default:"0" }}</div>
+    <div class="l">Total Reports</div>
+  </div>
+  <div class="card mm-stat">
+    <div class="n">{{ mm_published|default:"0" }}</div>
+    <div class="l">Published</div>
+  </div>
+  <div class="card mm-stat">
+    <div class="n">{{ mm_pending|default:"0" }}</div>
+    <div class="l">Needs Review</div>
+  </div>
+  <div class="card mm-stat">
+    <div class="n">{{ mm_resolved|default:"0" }}</div>
+    <div class="l">Resolved</div>
+  </div>
+</div>
+
+<div class="mm-quick">
+  <a href="/dashboard/" target="_blank" rel="noopener">Operator Dashboard ↗</a>
+  <a href="/api/docs" target="_blank" rel="noopener">API Docs ↗</a>
+  <a href="/dashboard/iqe/">IQE Queue</a>
+  <a href="/dashboard/followup/">Follow-up</a>
+</div>
+
+{% if mm_recent %}
+<div class="mm-recent">
+  <h2 style="font-size:13px;margin:16px 0 4px;">Recent Reports</h2>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Location</th><th>Class</th><th>Trust</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {% for o in mm_recent %}
+      <tr>
+        <td><a href="{% url 'admin:observations_observation_change' o.id %}">{{ o.id }}</a></td>
+        <td>{{ o.location_label|default:"—"|truncatechars:40 }}</td>
+        <td style="text-transform:capitalize;">{{ o.detected_class }}</td>
+        <td>{{ o.trust_score|floatformat:2 }}</td>
+        <td><span class="mm-pill {{ o.status }}">{{ o.status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{{ block.super }}
+{% endblock %}

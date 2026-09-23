@@ -13,14 +13,21 @@ Scenarios:
   D. SFace detects face            → blur before publish (handled in cv_pipeline)
   E. TypeSafe photo_quality_ok low → pending_verification (photo too poor)
 
-Trace log entry written to logger for agentic track submission evidence.
+Trace log → logger (structured) + TRACES_DIR JSON file (agentic track evidence).
 ponytail: simple decision tree, no LangChain/orchestration overhead.
 """
 import logging
 import json
 import datetime
+import os
+from pathlib import Path
 
 logger = logging.getLogger("matamu.agentic")
+
+# Traces written to docs/agentic-traces/ for submission evidence
+_BASE = Path(__file__).resolve().parents[2]
+TRACES_DIR = _BASE / "docs" / "agentic-traces"
+TRACES_DIR.mkdir(parents=True, exist_ok=True)
 
 TRUST_THRESHOLD = 0.65
 CONFIDENCE_THRESHOLD = 0.50
@@ -45,7 +52,7 @@ def run_agentic_loop(
     Args:
         typesafe_result: output from typesafe_eval.evaluate_observation(), or None
 
-    Returns: "published" | "pending_verification"
+    Returns: (status, reason) — "published" | "pending_verification" + human-readable reason.
     Also logs a structured trace for agentic track evidence.
     """
     trace = {
@@ -127,7 +134,16 @@ def run_agentic_loop(
         }
 
     logger.info("AGENTIC_TRACE %s", json.dumps(trace, ensure_ascii=False))
-    return decision
+
+    # Write trace to file for agentic track submission evidence
+    ts_str = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
+    trace_file = TRACES_DIR / f"trace_{ts_str}_{decision}.json"
+    try:
+        trace_file.write_text(json.dumps(trace, indent=2, ensure_ascii=False))
+    except Exception as e:
+        logger.warning("agentic: could not write trace file — %s", e)
+
+    return decision, reason
 
 
 def _typesafe_decision(

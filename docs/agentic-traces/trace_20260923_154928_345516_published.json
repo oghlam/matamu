@@ -1,0 +1,73 @@
+{
+  "timestamp": "2026-09-23T15:49:28.345303Z",
+  "phase": "agentic_loop",
+  "input": {
+    "detected_class": "pothole",
+    "confidence": 0.766,
+    "trust": 0.883,
+    "severity": "moderate",
+    "faces_blurred": 0,
+    "nearby_count": 0
+  },
+  "perception": {
+    "high_confidence": true,
+    "high_trust": true,
+    "is_recurring": false,
+    "privacy_ok": true,
+    "typesafe_used": true,
+    "typesafe_severity_confidence": 0.93,
+    "typesafe_photo_quality": 0.57,
+    "typesafe_is_recurring": 0.05
+  },
+  "decision": {
+    "status": "published",
+    "reason": "TypeSafe severity confidence=0.93 >= 0.7 — auto-publish",
+    "routing": "typesafe"
+  },
+  "action": {
+    "actions": [
+      "status_set_published"
+    ]
+  },
+  "output": {
+    "final_status": "published"
+  },
+  "typesafe_eval": {
+    "severity": {
+      "score": 1.07,
+      "confidence": 0.93,
+      "level": "moderate",
+      "probabilities": {
+        "minor": 0.0,
+        "moderate": 0.93,
+        "severe": 0.07,
+        "critical": 0.0
+      }
+    },
+    "damage_class": {
+      "choice": "pothole",
+      "confidence": 1.0,
+      "probabilities": {
+        "rutting": 0.0,
+        "alligator_crack": 0.0,
+        "pothole": 1.0,
+        "surface_degradation": 0.0,
+        "longitudinal_crack": 0.0,
+        "flooding": 0.0
+      }
+    },
+    "urgency": {
+      "score": 1.55,
+      "confidence": 0.54,
+      "level": "high",
+      "probabilities": {
+        "low": 0.01,
+        "medium": 0.43,
+        "high": 0.56,
+        "emergency": 0.0
+      }
+    },
+    "photo_quality_ok": 0.57,
+    "is_recurring_noul": 0.05
+  }
+}

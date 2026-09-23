@@ -22,7 +22,18 @@ class Observation(models.Model):
     all_detections = models.JSONField(default=list)  # [{class, confidence, bbox}]
     faces_blurred = models.IntegerField(default=0)
     typesafe_eval = models.JSONField(default=dict, blank=True)  # TypeSafe AI structured eval
+    # Reporter identity (Google OAuth) — anti-spam/bot accountability
+    reporter_sub = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    reporter_email = models.CharField(max_length=255, blank=True, default="")
+    reporter_name = models.CharField(max_length=255, blank=True, default="")
+    # Human-readable reason when status=pending_verification (shown in PWA + IQE queue)
+    review_reason = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        permissions = [
+            ("can_moderate_iqe", "Can accept/reject IQE queue (supervisor)"),
+        ]
 
     def __str__(self):
         return f"{self.detected_class} {self.trust_score:.2f} {self.status}"

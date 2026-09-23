@@ -1,0 +1,101 @@
+{% extends "dashboard/base.html" %}
+{% block title %}IQE Queue — Mat(a)Mu{% endblock %}
+{% block page_title %}IQE — Trust Score Queue{% endblock %}
+
+{% block header_actions %}
+<span class="badge-accent">{{ pending|length }} pending</span>
+{% endblock %}
+
+{% block content %}
+
+{% if not pending %}
+<div class="card p-12 flex flex-col items-center gap-3 text-center">
+  <div class="w-12 h-12 rounded-xl bg-ok/10 flex items-center justify-center">
+    <svg width="24" height="24" fill="none" stroke="#67B57A" stroke-width="1.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+    </svg>
+  </div>
+  <p class="font-semibold text-tp">Queue empty</p>
+  <p class="text-sm text-ts">All reports have been verified</p>
+</div>
+{% else %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+  {% for obs in pending %}
+  <div class="card p-4 flex flex-col gap-3 min-w-0">
+
+    <!-- Header: address wraps, never truncated -->
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-semibold text-tp break-words leading-snug">
+          {{ obs.location_label|default:"Unknown location" }}
+        </p>
+        <p class="text-xs text-ts mt-0.5 break-words flex items-center gap-1.5">
+          {% include "dashboard/_defect_icon.html" with type=obs.detected_class size=16 %}
+          <span class="capitalize">{{ obs.detected_class }} · conf {{ obs.confidence|floatformat:2 }}</span>
+        </p>
+      </div>
+      <span class="badge-warn shrink-0">Pending</span>
+    </div>
+
+    <!-- Trust score bar -->
+    <div>
+      <div class="flex justify-between text-xs mb-1">
+        <span class="text-tm">Trust Score</span>
+        <span class="font-semibold text-tp">{% widthratio obs.trust_score 1 100 %}</span>
+      </div>
+      <div class="h-2 rounded-full bg-s2 overflow-hidden">
+        <div class="h-full rounded-full
+          {% if obs.trust_score >= 0.7 %}bg-ok{% elif obs.trust_score >= 0.4 %}bg-warn{% else %}bg-bad{% endif %}"
+          style="width:{% widthratio obs.trust_score 1 100 %}%">
+        </div>
+      </div>
+    </div>
+
+    <!-- AI summary: full text, wraps -->
+    {% if obs.summary %}
+    <p class="text-xs text-ts leading-relaxed bg-s2 rounded-lg px-3 py-2 break-words">
+      {{ obs.summary }}
+    </p>
+    {% endif %}
+
+    <!-- Metadata -->
+    <div class="text-xs text-tm space-y-0.5">
+      <p>Faces blurred: {{ obs.faces_blurred }}</p>
+      <p>{{ obs.created_at|date:"d M Y, H:i" }}</p>
+    </div>
+
+    <!-- Actions (supervisor only) -->
+    {% if perms.observations.can_moderate_iqe %}
+    <div class="flex gap-2 mt-auto pt-1">
+      <form method="post" action="{% url 'dashboard:iqe_action' obs.pk %}" class="flex-1">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="accept">
+        <button type="submit" class="btn-ok w-full justify-center">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+          Accept
+        </button>
+      </form>
+      <form method="post" action="{% url 'dashboard:iqe_action' obs.pk %}" class="flex-1">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reject">
+        <button type="submit" class="btn-bad w-full justify-center">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Reject
+        </button>
+      </form>
+    </div>
+    {% else %}
+    <p class="text-[11px] text-tm bg-s2 rounded-lg px-3 py-2 mt-auto">Requires Supervisor role to moderate.</p>
+    {% endif %}
+
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

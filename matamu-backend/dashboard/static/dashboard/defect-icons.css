@@ -1,0 +1,27 @@
+/* Mat(a)Mu Road Defect Icon Set */
+.defect-icon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 22px;
+  color: currentColor;
+}
+
+.defect-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.defect-icon[data-size="16"] { width:16px; height:16px; flex-basis:16px; }
+.defect-icon[data-size="20"] { width:20px; height:20px; flex-basis:20px; }
+.defect-icon[data-size="24"] { width:24px; height:24px; flex-basis:24px; }
+
+/* Recommended semantic colors */
+.defect-pothole { color:#D96868; }
+.defect-longitudinal-crack { color:#E8A629; }
+.defect-alligator-crack { color:#C9783B; }
+.defect-rutting { color:#8B6F47; }
+.defect-flooding { color:#3B82A0; }
+.defect-surface-degradation { color:#7A7F78; }

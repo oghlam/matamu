@@ -12,6 +12,8 @@ class ObservationAdmin(admin.ModelAdmin):
     list_filter = ("detected_class", "severity", "status")
     search_fields = ("summary", "location_label")
     readonly_fields = ("all_detections", "trust_score", "confidence", "faces_blurred", "evidence_url")
+    date_hierarchy = "created_at"
+    list_per_page = 25
     inlines = [FollowUpInline]
     actions = ["mark_published", "mark_pending"]
 

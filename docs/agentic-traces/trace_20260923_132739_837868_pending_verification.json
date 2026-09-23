@@ -1,0 +1,54 @@
+{
+  "timestamp": "2026-09-23T13:27:39.837795Z",
+  "phase": "agentic_loop",
+  "input": {
+    "detected_class": "longitudinal_crack",
+    "confidence": 0.28,
+    "trust": 0.6,
+    "severity": "low",
+    "faces_blurred": 0,
+    "nearby_count": 0
+  },
+  "perception": {
+    "high_confidence": false,
+    "high_trust": false,
+    "is_recurring": false,
+    "privacy_ok": true,
+    "typesafe_used": true,
+    "typesafe_severity_confidence": 0.3,
+    "typesafe_photo_quality": 0.75,
+    "typesafe_is_recurring": 0.0
+  },
+  "decision": {
+    "status": "pending_verification",
+    "reason": "low YOLO confidence (28%) — needs human review",
+    "routing": "typesafe"
+  },
+  "action": {
+    "actions": [
+      "status_set_pending_verification",
+      "iQE_review_queued"
+    ]
+  },
+  "output": {
+    "final_status": "pending_verification"
+  },
+  "typesafe_eval": {
+    "severity": {
+      "level": "low",
+      "score": 0.5,
+      "confidence": 0.3
+    },
+    "damage_class": {
+      "level": "longitudinal_crack",
+      "confidence": 0.55
+    },
+    "urgency": {
+      "level": "low",
+      "score": 0.0,
+      "confidence": 0.3
+    },
+    "photo_quality_ok": 0.75,
+    "is_recurring_noul": 0.0
+  }
+}
