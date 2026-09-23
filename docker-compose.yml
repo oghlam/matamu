@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgis/postgis:16-3.5
+    container_name: matamu-db-local
+    environment:
+      POSTGRES_USER: matamu
+      POSTGRES_PASSWORD: matamu_password
+      POSTGRES_DB: matamu
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

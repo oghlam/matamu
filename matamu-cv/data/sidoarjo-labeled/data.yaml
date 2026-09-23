@@ -1,0 +1,14 @@
+names:
+- alligator_crack
+- flooding
+- pothole
+- surface_degradation
+nc: 4
+roboflow:
+  license: Private
+  project: matamu2-sidoarjo
+  url: https://app.roboflow.com/zhafran-arsalan-s-workspace/matamu2-sidoarjo/1
+  version: 1
+  workspace: zhafran-arsalan-s-workspace
+train: C:\laragon\www\matamu\matamu-cv\data\sidoarjo-labeled\train\images
+val: C:\laragon\www\matamu\matamu-cv\data\sidoarjo-labeled\valid\images

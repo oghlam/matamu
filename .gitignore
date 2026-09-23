@@ -135,3 +135,11 @@ docker-compose.local.yml
 *.temp
 .cache/
 tmp/
+
+# --- CV OUTPUT (generated, not source) ---
+matamu-cv/data/sidoarjo_out/
+matamu-cv/data/sidoarjo_custom_out/
+matamu-cv/data/sidoarjo_public_out/
+matamu-cv/data/sidoarjo_blurred/
+matamu-cv/runs/
+*.cache
