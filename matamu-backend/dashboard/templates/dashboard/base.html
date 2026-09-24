@@ -248,6 +248,13 @@
         <p class="text-[11px] text-tm bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">Tip: Leave empty to keep keyless. Live feeds activate on next map toggle.</p>
       </div>
       <div id="tab-content-health" class="hidden p-5 space-y-4">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs text-ts">Click refresh to get latest metrics</p>
+          <button id="health-refresh-btn" class="px-3 py-1.5 rounded-lg bg-accent text-dark text-xs font-bold hover:bg-accent/90 transition-colors flex items-center gap-1.5">
+            <svg id="health-refresh-icon" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+        </div>
         <div id="health-loading" class="flex flex-col items-center justify-center py-8">
           <svg class="animate-spin h-8 w-8 text-accent mb-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
           <p class="text-sm text-ts">Loading system health...</p>
@@ -293,13 +300,14 @@
     const contentHealth = document.getElementById('tab-content-health');
     const healthLoading = document.getElementById('health-loading');
     const healthContent = document.getElementById('health-content');
+    const healthRefreshBtn = document.getElementById('health-refresh-btn');
+    const healthRefreshIcon = document.getElementById('health-refresh-icon');
     const titleEl = document.getElementById('powerup-title');
     const headingEl = document.getElementById('powerup-heading');
     const descEl = document.getElementById('powerup-desc');
     
     let currentTab = 'providers';
     let healthData = null;
-    let healthInterval = null;
     
     function switchTab(tab){
       currentTab = tab;
@@ -321,11 +329,12 @@
         headingEl.textContent = 'Application status';
         descEl.textContent = 'Real-time metrics showing whether the app is running smoothly.';
         if(!healthData) fetchHealth();
-        healthInterval = setInterval(fetchHealth, 10000);
       }
     }
     
     async function fetchHealth(){
+      healthRefreshBtn.disabled = true;
+      healthRefreshIcon.classList.add('animate-spin');
       healthLoading.classList.remove('hidden');
       healthContent.classList.add('hidden');
       try {
@@ -338,6 +347,8 @@
         healthContent.classList.remove('hidden');
       } finally {
         healthLoading.classList.add('hidden');
+        healthRefreshBtn.disabled = false;
+        healthRefreshIcon.classList.remove('animate-spin');
       }
     }
     
@@ -383,13 +394,14 @@
           <div class="flex items-center justify-between text-xs"><span class="text-ts">Total reports</span><span class="font-mono font-semibold text-tp">${data.observations.total}</span></div>
           <div class="flex items-center justify-between text-xs mt-1"><span class="text-ts">Published</span><span class="font-mono font-semibold text-tp">${data.observations.published}</span></div>
         </section>
-        <p class="text-[11px] text-ts bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">Health metrics refresh every 10 seconds. Green = OK, Yellow = Warning, Red = Critical.</p>
+        <p class="text-[11px] text-ts bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">Click the Refresh button above to get the latest metrics. Green = OK, Yellow = Warning, Red = Critical.</p>
       `;
       healthContent.classList.remove('hidden');
     }
     
     tabProviders && tabProviders.addEventListener('click', () => switchTab('providers'));
     tabHealth && tabHealth.addEventListener('click', () => switchTab('health'));
+    healthRefreshBtn && healthRefreshBtn.addEventListener('click', fetchHealth);
     
     btn&&btn.addEventListener('click', open);
     closeBtn&&closeBtn.addEventListener('click', close);
