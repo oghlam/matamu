@@ -1,0 +1,59 @@
+name: Build & Deploy Mat(a)Mu
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_DEPLOY_KEY }}
+
+      - name: Add EC2 host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Rsync to EC2
+        run: |
+          set -e
+          EC2_USER="${{ secrets.EC2_USER }}"
+          EC2_HOST="${{ secrets.EC2_HOST }}"
+          echo "=== Rsync code to EC2 ==="
+          rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+            --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' \
+            --exclude 'matamu-backend/db.sqlite3' --exclude 'matamu-backend/venv' \
+            --exclude '.github' --exclude 'node_modules' \
+            ./ $EC2_USER@$EC2_HOST:/home/ec2-user/matamu/
+
+      - name: Migrate & Restart on EC2
+        run: |
+          EC2_USER="${{ secrets.EC2_USER }}"
+          EC2_HOST="${{ secrets.EC2_HOST }}"
+          ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'DEPLOY_SCRIPT'
+            set -e
+            VENV_PATH="/home/ec2-user/matamu-env"
+            cd /home/ec2-user/matamu
+            echo "=== Installing deps (light) ==="
+            source "$VENV_PATH/bin/activate"
+            pip install -q Django==5.1 django-ninja==1.3.0 psycopg2-binary django-cors-headers python-dotenv gunicorn requests boto3 Pillow opencv-python==5.0.0.93
+            echo "=== Migrate (PostGIS) ==="
+            cd matamu-backend
+            USE_POSTGIS=1 python manage.py migrate --noinput
+            echo "=== Restart matamu ==="
+            sudo systemctl restart matamu
+            echo "=== Check ==="
+            curl -sf http://127.0.0.1:8080/api/ping | head -c 100; echo
+            echo "=== Deployment Completed Successfully ==="
+          DEPLOY_SCRIPT
