@@ -10,6 +10,7 @@
 
 <!-- Filter bar -->
 <form method="get" class="card px-4 py-3 flex flex-wrap items-center gap-2">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search location…" class="flex-1 min-w-[160px] !bg-white/80" aria-label="Search location">
   <select name="status" aria-label="Filter status">
     <option value="" {% if not status_f %}selected{% endif %}>All Statuses</option>
     <option value="published"          {% if status_f == "published" %}selected{% endif %}>Published</option>
@@ -32,8 +33,13 @@
     <option value="flooding"             {% if class_f == "flooding" %}selected{% endif %}>Flooding</option>
     <option value="surface_degradation"  {% if class_f == "surface_degradation" %}selected{% endif %}>Surface Degradation</option>
   </select>
+  <select name="per_page" aria-label="Per page" onchange="this.form.submit()">
+    <option value="10" {% if per_page == 10 %}selected{% endif %}>10 / page</option>
+    <option value="25" {% if per_page == 25 %}selected{% endif %}>25 / page</option>
+    <option value="50" {% if per_page == 50 %}selected{% endif %}>50 / page</option>
+  </select>
   <button type="submit" class="btn-primary">Filter</button>
-  {% if status_f or severity_f or class_f %}
+  {% if status_f or severity_f or class_f or q %}
   <a href="{% url 'dashboard:observations' %}" class="btn-ghost">Reset</a>
   {% endif %}
 </form>
@@ -57,12 +63,17 @@
       <tbody class="divide-y divide-gray-50">
         {% for obs in observations %}
         <tr class="hover:bg-s2/40 transition-colors">
-          <td class="px-4 py-3 text-tm text-xs whitespace-nowrap">{{ obs.id }}</td>
+          <td class="px-4 py-3 text-tm text-xs whitespace-nowrap">{{ page_obj.start_index|add:forloop.counter0 }}</td>
           <td class="px-4 py-3 min-w-[180px]">
-            <p class="font-medium text-tp text-[13px] leading-snug break-words">
-              {{ obs.location_label|default:"—" }}
-            </p>
+            {% if obs.evidence_url|slice:":4" == "http" or obs.evidence_url|slice:":1" == "/" %}
+            <button type="button" data-url="{{ obs.evidence_url }}" data-cap="{{ obs.location_label|default:'Evidence'|escape }}" onclick="openObsModal(this.dataset.url, this.dataset.cap)" class="text-left w-full group">
+              <p class="font-medium text-tp text-[13px] leading-snug break-words group-hover:text-accent group-hover:underline">{{ obs.location_label|default:"—" }}</p>
+              <p class="text-xs text-tm mt-0.5 whitespace-nowrap">{{ obs.lat|floatformat:4 }}, {{ obs.lng|floatformat:4 }}</p>
+            </button>
+            {% else %}
+            <p class="font-medium text-tp text-[13px] leading-snug break-words">{{ obs.location_label|default:"—" }}</p>
             <p class="text-xs text-tm mt-0.5 whitespace-nowrap">{{ obs.lat|floatformat:4 }}, {{ obs.lng|floatformat:4 }}</p>
+            {% endif %}
           </td>
           <td class="px-4 py-3 text-ts whitespace-nowrap">
             <span class="inline-flex items-center gap-1.5">
@@ -119,5 +130,46 @@
     </table>
   </div>
 </div>
+
+<!-- Pagination -->
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="flex flex-wrap items-center justify-between gap-2 mt-4">
+  <p class="text-xs text-tm">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</p>
+  <div class="flex items-center gap-1">
+    {% if page_obj.has_previous %}
+      <a href="?q={{ q|urlencode }}&status={{ status_f }}&severity={{ severity_f }}&cls={{ class_f }}&per_page={{ per_page }}&page={{ page_obj.previous_page_number }}" class="px-2.5 py-1 rounded-lg border bg-white text-xs hover:bg-s2">Prev</a>
+    {% endif %}
+    {% for num in page_obj.paginator.page_range %}
+      {% if num == page_obj.number %}
+        <span class="px-2.5 py-1 rounded-lg bg-dark text-white text-xs">{{ num }}</span>
+      {% elif num <= 3 or num > page_obj.paginator.num_pages|add:"-3" or num == page_obj.number|add:"-1" or num == page_obj.number|add:"1" %}
+        <a href="?q={{ q|urlencode }}&status={{ status_f }}&severity={{ severity_f }}&cls={{ class_f }}&per_page={{ per_page }}&page={{ num }}" class="px-2.5 py-1 rounded-lg border bg-white text-xs hover:bg-s2">{{ num }}</a>
+      {% elif num == 4 or num == page_obj.paginator.num_pages|add:"-4" %}
+        <span class="px-2 py-1 text-xs text-tm">…</span>
+      {% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}
+      <a href="?q={{ q|urlencode }}&status={{ status_f }}&severity={{ severity_f }}&cls={{ class_f }}&per_page={{ per_page }}&page={{ page_obj.next_page_number }}" class="px-2.5 py-1 rounded-lg border bg-white text-xs hover:bg-s2">Next</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Evidence modal for Report List -->
+<div id="obs-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-dark/70" onclick="closeObsModal()"></div>
+  <div class="relative bg-surface rounded-xl shadow-float w-full max-w-2xl overflow-hidden">
+    <img id="obs-modal-img" alt="Evidence photo" class="w-full max-h-[75vh] object-contain bg-dark">
+    <div class="flex items-center gap-3 px-4 py-2.5">
+      <p id="obs-modal-cap" class="text-xs text-ts truncate flex-1"></p>
+      <button type="button" onclick="closeObsModal()" class="btn-ghost">Close</button>
+    </div>
+  </div>
+</div>
+<script>
+function openObsModal(url, cap){document.getElementById('obs-modal-img').src=url;document.getElementById('obs-modal-cap').textContent=cap||'';document.getElementById('obs-modal').classList.remove('hidden');document.addEventListener('keydown',escObsModal)}
+function closeObsModal(){document.getElementById('obs-modal').classList.add('hidden');document.getElementById('obs-modal-img').removeAttribute('src');document.removeEventListener('keydown',escObsModal)}
+function escObsModal(e){if(e.key==='Escape')closeObsModal()}
+</script>
 
 {% endblock %}

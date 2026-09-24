@@ -71,10 +71,18 @@ def overview(request):
 
 @login_required
 def observations(request):
+    from django.core.paginator import Paginator
     qs = Observation.objects.order_by("-created_at")
     status_f = request.GET.get("status", "")
     severity_f = request.GET.get("severity", "")
     class_f = request.GET.get("cls", "")
+    q = request.GET.get("q", "").strip()
+    try:
+        per_page = int(request.GET.get("per_page", "10"))
+    except ValueError:
+        per_page = 10
+    if per_page not in (10, 25, 50):
+        per_page = 10
     if status_f:
         qs = qs.filter(status=status_f)
     if severity_f in ("moderate", "medium"):
@@ -83,20 +91,39 @@ def observations(request):
         qs = qs.filter(severity=severity_f)
     if class_f:
         qs = qs.filter(detected_class=class_f)
+    if q:
+        qs = qs.filter(location_label__icontains=q)
+    paginator = Paginator(qs, per_page)
+    page_number = request.GET.get("page", "1")
+    page_obj = paginator.get_page(page_number)
     return render(request, "dashboard/observations.html", {
-        "observations": qs[:200],
+        "observations": page_obj.object_list,
+        "page_obj": page_obj,
         "status_f": status_f,
         "severity_f": severity_f,
         "class_f": class_f,
+        "q": q,
+        "per_page": per_page,
         "page": "observations",
     })
 
 
 @login_required
 def iqe_queue(request):
-    pending = Observation.objects.filter(status="pending_verification").order_by("created_at")
+    from django.core.paginator import Paginator
+    pending_qs = Observation.objects.filter(status="pending_verification").order_by("created_at")
+    try:
+        per_page = int(request.GET.get("per_page", "10"))
+    except ValueError:
+        per_page = 10
+    if per_page not in (10, 25, 50):
+        per_page = 10
+    paginator = Paginator(pending_qs, per_page)
+    page_obj = paginator.get_page(request.GET.get("page", "1"))
     return render(request, "dashboard/iqe.html", {
-        "pending": pending,
+        "pending": page_obj.object_list,
+        "page_obj": page_obj,
+        "per_page": per_page,
         "page": "iqe",
     })
 
@@ -117,11 +144,20 @@ def iqe_action(request, pk):
 
 @login_required
 def followup(request):
-    active = Observation.objects.filter(
-        status__in=["published", "acknowledged"]
-    ).order_by("-created_at")[:100]
+    from django.core.paginator import Paginator
+    qs = Observation.objects.filter(status__in=["published", "acknowledged"]).order_by("-created_at")
+    try:
+        per_page = int(request.GET.get("per_page", "10"))
+    except ValueError:
+        per_page = 10
+    if per_page not in (10, 25, 50):
+        per_page = 10
+    paginator = Paginator(qs, per_page)
+    page_obj = paginator.get_page(request.GET.get("page", "1"))
     return render(request, "dashboard/followup.html", {
-        "observations": active,
+        "observations": page_obj.object_list,
+        "page_obj": page_obj,
+        "per_page": per_page,
         "page": "followup",
     })
 
@@ -146,13 +182,13 @@ def followup_action(request, pk):
 @login_required
 def agentic_traces(request):
     from pathlib import Path
+    from django.core.paginator import Paginator
     traces_dir = Path(__file__).resolve().parents[2] / "docs" / "agentic-traces"
     if not traces_dir.exists():
-        return render(request, "dashboard/agentic.html", {"traces": [], "page": "agentic"})
-    # only real capture traces (trace_*.json), not scenario_*.json
+        return render(request, "dashboard/agentic.html", {"traces": [], "page_obj": None, "per_page": 10, "page": "agentic"})
     trace_files = sorted(traces_dir.glob("trace_*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
     traces = []
-    for f in trace_files[:50]:  # limit 50 most recent
+    for f in trace_files:  # all, paginator will limit
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
             traces.append({
@@ -166,5 +202,13 @@ def agentic_traces(request):
                 "actions": data.get("action", {}).get("actions", []),
             })
         except Exception:
-            pass  # skip malformed JSON
-    return render(request, "dashboard/agentic.html", {"traces": traces, "page": "agentic"})
+            pass
+    try:
+        per_page = int(request.GET.get("per_page", "10"))
+    except ValueError:
+        per_page = 10
+    if per_page not in (10, 25, 50):
+        per_page = 10
+    paginator = Paginator(traces, per_page)
+    page_obj = paginator.get_page(request.GET.get("page", "1"))
+    return render(request, "dashboard/agentic.html", {"traces": page_obj.object_list, "page_obj": page_obj, "per_page": per_page, "page": "agentic"})
