@@ -43,6 +43,7 @@ venv\Scripts\python.exe docs/integration_test.py                    # harap 42/4
 3. **Satu PR per fitur** — jangan campur scope antar sprint
 4. **Test sebelum commit** — pastikan import berhasil, tidak ada syntax error
 5. **Dokumentasi up-to-date** — update `docs/` setiap ada perubahan arsitektur
+6. **JANGAN commit/push/deploy tanpa perintah eksplisit user** — ini bikin kerja tertunda nunggu CI. Tahan di lokal sampai user bilang "commit", "push", atau "deploy"
 6. **LANGUAGE POLICY — WAJIB:**
    - ✅ **Web/Mobile UI**: Full English (menus, labels, buttons, placeholders, error messages, toasts)
    - ✅ **Code**: English (variable names, function names, comments, docstrings)
