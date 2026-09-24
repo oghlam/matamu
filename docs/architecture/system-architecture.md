@@ -40,7 +40,7 @@
 │  │   │                                                         │   │
 │  │   ├── 6. LiteLLM Proxy                                     │   │
 │  │   │      ├── Haiku 4.5 → condition summary (English)       │   │
-│  │   │      ├── Gemini 3.7 Flash → severity assessment        │   │
+│  │   │      ├── Sonnet 4.5 → severity assessment (vision)    │   │
 │  │   │      └── Haiku 4.5 → dedup hint (recurring)           │   │
 │  │   │                                                         │   │
 │  │   ├── 7. TypeSafe AI (5 parallel structured questions)     │   │
@@ -68,7 +68,7 @@
 │  │  PostgreSQL 16   │  │  Django Admin + Custom Dashboard       │  │
 │  │  + PostGIS 3     │  │  /admin/  → Django Admin               │  │
 │  │                  │  │  /dashboard/ → Operator Dashboard      │  │
-│  │  Observation     │  │   ├── Overview (MapLibre + Esri sat)   │  │
+│  │  Observation     │  │   ├── Overview (MapLibre + Esri sat + Bing via Ion + 3D terrain/buildings + Traffic live/sim)   │  │
 │  │  FollowUp        │  │   ├── Reports (filter/search)          │  │
 │  │                  │  │   ├── IQE Queue (accept/reject)        │  │
 │  └──────────────────┘  │   └── Follow-up manager               │  │
@@ -78,11 +78,10 @@
                ▼                              ▼
 ┌──────────────────────┐     ┌──────────────────────────────────────┐
 │  AWS S3              │     │  External Services (server-side only) │
-│  matamu-evidence     │     │  ├── AWS Bedrock (Haiku 4.5)         │
-│  ├── /evidence/*.jpg │     │  ├── Google Gemini 3.7 Flash          │
-│  │   (blurred only)  │     │  ├── TypeSafe AI (jev-latest)         │
-│  └── lifecycle: 30d  │     │  ├── Google Maps Geocoding API        │
-└──────────────────────┘     │  └── via LiteLLM proxy               │
+│  matamu-evidence     │     │  ├── AWS Bedrock Haiku 4.5 + Sonnet 4.5│
+│  ├── /evidence/*.jpg │     │  ├── TypeSafe AI (jev-latest)         │
+│  │   (blurred only)  │     │  └── via LiteLLM proxy                │
+│  └── lifecycle: 30d  │     └──────────────────────────────────────┘
                               └──────────────────────────────────────┘
 ```
 
@@ -100,7 +99,7 @@ Laplacian variance           → image blur quality score (IQE)
 
 ```
 [Photo + GPS] → OpenCV DNN → IQE → SFace → S3 → Geocode →
-LiteLLM (Haiku+Gemini) → TypeSafe → Agentic Loop →
+LiteLLM (Haiku+Sonnet) → TypeSafe → Agentic Loop →
 DB (Observation) → [published | pending_verification]
 ```
 
@@ -115,4 +114,7 @@ DB (Observation) → [published | pending_verification]
 | Frontend (warga PWA) | Static / EC2 | ap-southeast-1 |
 | Basemap tiles | CARTO (free) | CDN |
 | Satellite tiles | Esri ArcGIS (free) | CDN |
+| Bing tiles (via Ion) | Cesium Ion (Bing) | via PowerUp |
 | Geocoding | Google Maps API | server-side only |
+| Traffic flow | TomTom (free tier, via PowerUp) / Overpass (OSM roads, via /api/overpass proxy) | server-side proxy + client sim |
+| 3D terrain | MapLibre demotiles (free) + OpenFreeMap buildings | client |

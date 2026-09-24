@@ -38,6 +38,34 @@
       <span class="badge-warn shrink-0">Pending</span>
     </div>
 
+    <!-- Evidence thumbnail — click for full inspection modal -->
+    {% if obs.evidence_url|slice:":4" == "http" or obs.evidence_url|slice:":1" == "/" %}
+    <button type="button"
+            data-url="{{ obs.evidence_url }}"
+            data-cap="{{ obs.location_label|default:'Evidence'|escape }}"
+            onclick="openIqeModal(this.dataset.url, this.dataset.cap)"
+            class="block w-full rounded-lg overflow-hidden border border-gray-100 hover:opacity-95 transition-opacity"
+            aria-label="Inspect evidence photo">
+      <img src="{{ obs.evidence_url }}" alt="Evidence photo"
+           class="w-full h-36 object-cover" loading="lazy">
+    </button>
+    {% else %}
+    <div class="w-full h-24 rounded-lg bg-s2/60 flex items-center justify-center text-tm text-xs">
+      No photo available
+    </div>
+    {% endif %}
+
+    <!-- Review reason — why this is pending -->
+    {% if obs.review_reason %}
+    <div class="flex items-start gap-2 text-[11px] text-warn bg-warn/10 rounded-lg px-2.5 py-2 break-words">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="shrink-0 mt-0.5">
+        <circle cx="12" cy="12" r="10"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01"/>
+      </svg>
+      <span>{{ obs.review_reason }}</span>
+    </div>
+    {% endif %}
+
     <!-- Trust score bar -->
     <div>
       <div class="flex justify-between text-xs mb-1">
@@ -97,5 +125,31 @@
   {% endfor %}
 </div>
 {% endif %}
+
+<!-- Evidence inspection modal (gate 2: human eyes) -->
+<div id="iqe-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-dark/70" onclick="closeIqeModal()"></div>
+  <div class="relative bg-surface rounded-xl shadow-float w-full max-w-2xl overflow-hidden">
+    <img id="iqe-modal-img" alt="Evidence photo" class="w-full max-h-[75vh] object-contain bg-dark">
+    <div class="flex items-center gap-3 px-4 py-2.5">
+      <p id="iqe-modal-cap" class="text-xs text-ts truncate flex-1"></p>
+      <button type="button" onclick="closeIqeModal()" class="btn-ghost">Close</button>
+    </div>
+  </div>
+</div>
+<script>
+function openIqeModal(url, cap) {
+  document.getElementById('iqe-modal-img').src = url;
+  document.getElementById('iqe-modal-cap').textContent = cap || '';
+  document.getElementById('iqe-modal').classList.remove('hidden');
+  document.addEventListener('keydown', escIqeModal);
+}
+function closeIqeModal() {
+  document.getElementById('iqe-modal').classList.add('hidden');
+  document.getElementById('iqe-modal-img').removeAttribute('src');
+  document.removeEventListener('keydown', escIqeModal);
+}
+function escIqeModal(e) { if (e.key === 'Escape') closeIqeModal(); }
+</script>
 
 {% endblock %}

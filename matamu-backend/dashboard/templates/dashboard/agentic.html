@@ -1,0 +1,87 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Agentic Traces — Mat(a)Mu{% endblock %}
+{% block page_title %}Agentic Decision Traces{% endblock %}
+
+{% block header_actions %}
+<span class="badge-accent">{{ traces|length }} trace{{ traces|length|pluralize }}</span>
+{% endblock %}
+
+{% block content %}
+
+{% if not traces %}
+<div class="card p-12 flex flex-col items-center gap-3 text-center">
+  <div class="w-12 h-12 rounded-xl bg-s2 flex items-center justify-center">
+    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+    </svg>
+  </div>
+  <p class="font-semibold text-tp">No traces yet</p>
+  <p class="text-sm text-ts">Agentic decision traces from /capture will appear here</p>
+</div>
+{% else %}
+
+<div class="overflow-x-auto -mx-4 sm:mx-0">
+  <table class="w-full text-xs min-w-[640px]">
+    <thead>
+      <tr class="border-b border-s2">
+        <th class="text-left px-3 py-2 font-semibold text-tp">Timestamp</th>
+        <th class="text-left px-3 py-2 font-semibold text-tp">Detection</th>
+        <th class="text-left px-3 py-2 font-semibold text-tp">Conf</th>
+        <th class="text-left px-3 py-2 font-semibold text-tp">Final Status</th>
+        <th class="text-left px-3 py-2 font-semibold text-tp">Routing</th>
+        <th class="text-left px-3 py-2 font-semibold text-tp">Decision Reason</th>
+        <th class="text-left px-3 py-2 font-semibold text-tp">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in traces %}
+      <tr class="border-b border-s2 hover:bg-s2/30 transition-colors">
+        <td class="px-3 py-2.5 text-tm">
+          {{ t.timestamp|slice:":19" }}
+        </td>
+        <td class="px-3 py-2.5">
+          <div class="flex items-center gap-1.5">
+            {% include "dashboard/_defect_icon.html" with type=t.detected_class size=14 %}
+            <span class="capitalize text-tp">{{ t.detected_class }}</span>
+          </div>
+        </td>
+        <td class="px-3 py-2.5 text-tm">
+          {{ t.confidence|floatformat:2 }}
+        </td>
+        <td class="px-3 py-2.5">
+          {% if t.final_status == "published" %}
+          <span class="badge-ok">Published</span>
+          {% elif t.final_status == "pending_verification" %}
+          <span class="badge-warn">Pending</span>
+          {% else %}
+          <span class="badge-muted">{{ t.final_status }}</span>
+          {% endif %}
+        </td>
+        <td class="px-3 py-2.5">
+          {% if t.routing == "typesafe" %}
+          <span class="badge-accent">TypeSafe</span>
+          {% elif t.routing == "bedrock" %}
+          <span class="badge-muted">Bedrock</span>
+          {% else %}
+          <span class="text-tm">{{ t.routing|default:"—" }}</span>
+          {% endif %}
+        </td>
+        <td class="px-3 py-2.5 text-ts max-w-xs break-words">
+          {{ t.decision_reason|default:"—" }}
+        </td>
+        <td class="px-3 py-2.5 text-tm">
+          {% if t.actions %}
+            {{ t.actions|join:", " }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endif %}
+
+{% endblock %}

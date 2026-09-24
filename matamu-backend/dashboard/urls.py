@@ -10,4 +10,5 @@ urlpatterns = [
     path("iqe/<int:pk>/action/", views.iqe_action, name="iqe_action"),
     path("followup/", views.followup, name="followup"),
     path("followup/<int:pk>/action/", views.followup_action, name="followup_action"),
+    path("agentic/", views.agentic_traces, name="agentic"),
 ]

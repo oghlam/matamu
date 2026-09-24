@@ -3,6 +3,7 @@ import { FileText, MapPin, LogOut, ShieldCheck, AlertCircle, Clock } from 'lucid
 import { useObservations } from '../../hooks/useObservations'
 import Badge, { statusVariant, severityVariant } from '../../components/ui/Badge'
 import DefectIcon from '../../components/ui/DefectIcon'
+import ShareButtons from '../../components/ui/ShareButtons'
 import { SkeletonCard } from '../../components/ui/Skeleton'
 import { EmptyState, ErrorState } from '../../components/ui/States'
 import { getSession, clearSession, renderGoogleButton, devLogin, GOOGLE_CLIENT_ID } from '../../lib/auth'
@@ -112,11 +113,14 @@ function ReportCard({ obs }) {
     ? new Date(obs.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     : '—'
   const isPending = obs.status === 'pending_verification' || obs.status === 'pending'
+  // mock:// URLs (old dev data) are not loadable — show placeholder instead
+  const hasPhoto = !!obs.evidence_url && !obs.evidence_url.startsWith('mock://')
 
   return (
-    <div className="bg-surface rounded-xl shadow-card p-4 flex gap-3">
+    <div className="bg-surface rounded-xl shadow-card p-4 flex flex-col gap-3">
+      <div className="flex gap-3">
       {/* Thumbnail */}
-      {obs.evidence_url ? (
+      {hasPhoto ? (
         <img
           src={obs.evidence_url}
           alt="Report photo"
@@ -140,9 +144,9 @@ function ReportCard({ obs }) {
         </div>
 
         <p className="text-xs text-text-secondary break-words flex items-center gap-1.5">
-          <DefectIcon type={obs.damage_class ?? obs.detection_class} size={16} />
+          <DefectIcon type={obs.damage_class} size={16} />
           <span className="capitalize">
-            {(obs.damage_class ?? obs.detection_class ?? 'Detected').replace(/_/g, ' ')}
+            {(obs.damage_class ?? 'Detected').replace(/_/g, ' ')}
           </span>
           {obs.severity && <span>· {obs.severity}</span>}
           {' '}· Trust {Math.round((obs.trust_score ?? 0) * 100)}
@@ -170,6 +174,15 @@ function ReportCard({ obs }) {
             </Badge>
           )}
         </div>
+      </div>
+      </div>
+      {/* Share row */}
+      <div className="pt-1 border-t border-line">
+        <ShareButtons
+          compact
+          title={`${obs.location_label ?? 'Road damage'} — ${obs.damage_class ?? ''}`}
+          path={`/r/${obs.id}`}
+        />
       </div>
     </div>
   )

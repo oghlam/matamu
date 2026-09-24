@@ -22,6 +22,7 @@ from django.shortcuts import redirect
 from django.urls import include, path
 
 from api.api import api as ninja_api
+from api.overpass_proxy import overpass_proxy
 
 
 def health(_request):
@@ -32,6 +33,7 @@ urlpatterns = [
     path("", lambda r: redirect("dashboard:overview")),
     path("admin/", admin.site.urls),
     path("health", health),
+    path("api/overpass", overpass_proxy),
     path("api/", ninja_api.urls),
     path("dashboard/", include("dashboard.urls")),
 ]

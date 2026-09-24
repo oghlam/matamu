@@ -33,14 +33,17 @@ def _s3():
 
 
 def upload_evidence(file_path: str | Path, prefix: str = "evidence") -> str:
-    """Upload file to S3, return https URL. Falls back to mock:// if S3 unavailable."""
+    """Upload file to S3, return https URL.
+
+    Falls back to local MEDIA storage (/media/...) when S3 is unavailable,
+    so evidence photos still display in dev/demo.
+    """
     file_path = Path(file_path)
     key = f"{prefix}/{uuid.uuid4().hex}_{file_path.name}"
 
     client = _s3()
     if client is None:
-        logger.info("s3: no credentials — mock URL for %s", file_path.name)
-        return f"mock://matamu-evidence/{key}"
+        return _local_fallback(file_path, key)
 
     try:
         client.upload_file(
@@ -52,4 +55,20 @@ def upload_evidence(file_path: str | Path, prefix: str = "evidence") -> str:
         return f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{key}"
     except Exception as e:
         logger.error("s3: upload failed — %s", e)
+        return _local_fallback(file_path, key)
+
+
+def _local_fallback(file_path: Path, key: str) -> str:
+    """Save evidence under MEDIA_ROOT and return a /media/ URL (dev/demo)."""
+    import shutil
+    from django.conf import settings
+
+    dest = Path(settings.MEDIA_ROOT) / key
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(file_path), str(dest))
+        logger.info("s3: no credentials — saved locally %s", dest)
+        return f"/media/{key}"
+    except Exception as e:
+        logger.error("local evidence save failed — %s", e)
         return f"mock://upload-failed/{key}"

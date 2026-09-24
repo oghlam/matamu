@@ -10,8 +10,10 @@
 | Folder | Isi | Masuk GitHub? |
 |--------|-----|---------------|
 | `docs/sprints/` | Sprint plan, progress log, daily notes | ✅ Ya |
-| `docs/architecture/` | Architecture diagram, component diagram, agentic flow | ✅ Ya |
-| `docs/api/` | API documentation (Django Ninja auto-generated) | ✅ Ya |
+| `docs/architecture/` | System + agentic flow diagram | ✅ Ya |
+| `docs/evaluation/` | Failure cases + benchmark | ✅ Ya |
+| `docs/agentic-traces/` | Trace JSON evidence (tiap capture) | ✅ Ya |
+| `docs/matamu-road-defect-icons/` | Sumber icon defect (SVG + CSS) — JANGAN duplikat mapping | ✅ Ya |
 | `docs/deployment/` | Deployment guide, CI/CD pipeline, env setup | ✅ Ya (tanpa credentials) |
 | `Road-Asset-Intelligence-Blueprint/` | Bahan mentah — RAIP blueprint | ❌ Tidak (.gitignore) |
 | `Mat_a_Mu_Project_Proposal.pdf` | Bahan mentah — proposal | ❌ Tidak (.gitignore) |
@@ -31,6 +33,8 @@
 - ❌ Model files (.onnx, .pt — terlalu besar)
 - ❌ Upload evidence (foto warga)
 - ❌ `.workbuddy-ai/` (session memory)
+- ❌ `media/evidence/` lokal (foto demo/dev — regen via seed)
+- ❌ `db.sqlite3` (database lokal — schema via migrations)
 
 ## Yang MASUK GitHub
 

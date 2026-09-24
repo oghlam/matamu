@@ -1,9 +1,23 @@
 import { useState, useRef, useEffect } from 'react'
+import exifr from 'exifr'
 import { Camera, Send, X, CheckCircle2, AlertCircle, Clock, LogOut, ShieldCheck, ImagePlus, Video } from 'lucide-react'
 import { useGps } from '../../hooks/useGps'
 import GpsBanner from '../../components/ui/GpsBanner'
 import LiveCamera from '../../components/camera/LiveCamera'
 import { getSession, clearSession, renderGoogleButton, devLogin, GOOGLE_CLIENT_ID } from '../../lib/auth'
+
+// Photos claiming a spot >500m from both EXIF and live GPS are blocked.
+const EXIF_MAX_GAP_KM = 0.5
+
+function haversineKm(aLat, aLng, bLat, bLng) {
+  const R = 6371
+  const dLa = ((bLat - aLat) * Math.PI) / 180
+  const dLo = ((bLng - aLng) * Math.PI) / 180
+  const s =
+    Math.sin(dLa / 2) ** 2 +
+    Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLo / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(s))
+}
 
 const STATES = {
   idle: 'idle',
@@ -26,6 +40,8 @@ export default function Capture() {
 
   // Continuous GPS watch — always on while on this page
   const gps = useGps()
+  const gpsRef = useRef(gps)
+  gpsRef.current = gps
 
   // Render Google button when logged out
   useEffect(() => {
@@ -50,10 +66,30 @@ export default function Capture() {
     }
   }
 
-  function onFileChange(e) {
+  async function onFileChange(e) {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
+    // EXIF cross-check (gallery uploads only): photo-embedded GPS must
+    // match live position, otherwise the claim is invalid.
+    try {
+      const exifGps = await exifr.gps(file).catch(() => null)
+      const live = gpsRef.current
+      if (exifGps?.latitude != null && live.gpsOn) {
+        const gap = haversineKm(live.lat, live.lng, exifGps.latitude, exifGps.longitude)
+        if (gap > EXIF_MAX_GAP_KM) {
+          setSubmitError(
+            `This photo was taken ${gap.toFixed(1)} km away from your position. ` +
+            'Use a photo taken at the reported location.'
+          )
+          setState(STATES.error)
+          setPhoto(null)
+          return
+        }
+      }
+    } catch {
+      // EXIF unreadable → allow, backend re-checks
+    }
     setPhoto({ file, url: URL.createObjectURL(file) })
     setState(STATES.preview)
   }
@@ -86,6 +122,7 @@ export default function Capture() {
       const q = new URLSearchParams({
         lat: gps.lat,
         lng: gps.lng,
+        ...(gps.accuracy != null && { gps_accuracy: gps.accuracy }),
         id_token: session.id_token,
       }).toString()
       const r = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/api/v1/capture?${q}`, {
@@ -192,6 +229,23 @@ export default function Capture() {
 
   // ── Preview + submit ──
   if (state === STATES.preview || state === STATES.submitting || state === STATES.error) {
+    // Rejected before preview (e.g. EXIF location mismatch) — no photo to show
+    if (!photo) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 pb-24 md:pb-6 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-danger/10 flex items-center justify-center">
+            <AlertCircle size={32} className="text-danger" />
+          </div>
+          <p className="text-sm text-text-primary font-medium max-w-xs">{submitError}</p>
+          <button
+            onClick={() => { setSubmitError(null); setState(STATES.idle) }}
+            className="px-6 py-2.5 rounded-xl bg-accent text-dark font-semibold text-sm"
+          >
+            Choose Another Photo
+          </button>
+        </div>
+      )
+    }
     return (
       <div className="flex-1 flex flex-col p-4 gap-4 pb-24 md:pb-4">
         {/* Reporter identity */}

@@ -18,7 +18,9 @@ const dots = {
 export const severityVariant = {
   critical: 'danger',
   severe: 'danger',
+  high: 'danger',
   moderate: 'warning',
+  medium: 'warning',
   low: 'success',
 }
 

@@ -20,7 +20,7 @@ Di EC2 (proxy jalan di :4000):
 curl -X POST http://localhost:4000/v1/chat/completions -H "Content-Type: application/json" \
   -d '{"model": "bedrock-claude-haiku-4-5", "messages": [{"role": "user", "content": "Hello"}]}'
 curl -X POST http://localhost:4000/v1/chat/completions -H "Content-Type: application/json" \
-  -d '{"model": "gemini-3.7-flash", "messages": [{"role": "user", "content": "Hello"}]}'
+  -d '{"model": "bedrock-claude-sonnet-4-5", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
 Jika LiteLLM belum jalan: `litellm --config litellm_config.yaml` atau cek service systemd.

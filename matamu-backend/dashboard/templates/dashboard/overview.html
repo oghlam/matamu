@@ -11,6 +11,14 @@
     100% { transform: scale(1.25); opacity: 0; }
   }
   .pin-pulse-ring { animation: pin-pulse 1.5s ease-out infinite; }
+  /* map controls turun di bawah header biar tidak numpuk — header ~52px */
+  @media (min-width: 768px) {
+    #map .maplibregl-ctrl-top-right { top: 62px; right: 6px; }
+  }
+  #dash-header { transition: transform .28s ease, opacity .2s ease; }
+  #dash-header.collapsed { transform: translateY(-110%); opacity: 0; pointer-events: none; }
+  #dash-kpi { transition: top .28s ease, opacity .2s ease; }
+  #dash-kpi.collapsed { top: 14px !important; }
 </style>
 {% endblock %}
 
@@ -21,9 +29,17 @@
 
   <!-- ═══ MAP CANVAS — the application (§14: workspace is the app) ═══ -->
   <div id="map" class="relative h-[44vh] shrink-0 rounded-xl overflow-hidden md:rounded-none md:absolute md:inset-0 md:h-auto"></div>
+  <!-- Traffic status chip — God’s Eye style -->
+  <div id="traffic-dash-status" class="hidden md:flex absolute top-[108px] right-4 z-10 pointer-events-none"></div>
+
+  <!-- ═══ COLLAPSE TOGGLE — header ^/v (luaskan peta) ═══ -->
+  <button id="dash-header-toggle" aria-label="Toggle header" title="Hide header"
+          class="hidden md:flex absolute top-2 left-1/2 -translate-x-1/2 z-20 w-7 h-7 rounded-full bg-dark text-white items-center justify-center shadow-float hover:bg-dark/90">
+    <svg id="dash-toggle-icon" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 15l6-6 6 6"/></svg>
+  </button>
 
   <!-- ═══ FLOATING CONTROL BAR — Search | Filter | Filter (§12) ═══ -->
-  <div class="md:absolute md:top-4 md:left-4 md:right-4 z-10
+  <div id="dash-header" class="md:absolute md:top-4 md:left-4 md:right-4 z-10
               bg-surface/90 backdrop-blur rounded-xl shadow-float px-3 py-2
               flex flex-wrap items-center gap-2">
     <div class="relative flex-1 min-w-[140px]">
@@ -53,27 +69,28 @@
   </div>
 
   <!-- ═══ FLOATING KPI PILLS — dark, semantic accent only (§8, §10D) ═══ -->
-  <div class="md:absolute md:top-[76px] md:left-1/2 md:-translate-x-1/2 z-10
-              flex gap-2 overflow-x-auto md:max-w-[90%] px-0.5 py-0.5">
-    <div class="flex items-baseline gap-2 bg-dark text-white rounded-xl px-4 py-2 shadow-float shrink-0">
-      <span class="text-xl font-bold text-accent leading-none">{{ stats.total }}</span>
-      <span class="text-[11px] text-white/70 whitespace-nowrap">Total Reports</span>
+  {# Mobile: 3-column grid fits fully. Desktop: centered floating row. #}
+  <div id="dash-kpi" class="md:absolute md:top-[76px] md:left-1/2 md:-translate-x-1/2 z-10
+              grid grid-cols-3 md:flex gap-2 md:max-w-[90%] px-0.5 py-0.5">
+    <div class="flex flex-col md:flex-row items-center md:items-baseline gap-0.5 md:gap-2 bg-dark text-white rounded-xl px-2 md:px-4 py-2 shadow-float md:shrink-0 text-center md:text-left">
+      <span class="text-lg md:text-xl font-bold text-accent leading-none">{{ stats.total }}</span>
+      <span class="text-[10px] md:text-[11px] text-white/70 whitespace-nowrap">Total Reports</span>
     </div>
-    <div class="flex items-baseline gap-2 bg-dark text-white rounded-xl px-4 py-2 shadow-float shrink-0">
-      <span class="text-xl font-bold text-white leading-none">{{ stats.avg_trust }}</span>
-      <span class="text-[11px] text-white/70 whitespace-nowrap">Avg Trust</span>
+    <div class="flex flex-col md:flex-row items-center md:items-baseline gap-0.5 md:gap-2 bg-dark text-white rounded-xl px-2 md:px-4 py-2 shadow-float md:shrink-0 text-center md:text-left">
+      <span class="text-lg md:text-xl font-bold text-white leading-none">{{ stats.avg_trust }}</span>
+      <span class="text-[10px] md:text-[11px] text-white/70 whitespace-nowrap">Avg Trust</span>
     </div>
-    <div class="flex items-baseline gap-2 bg-dark text-white rounded-xl px-4 py-2 shadow-float shrink-0">
-      <span class="text-xl font-bold text-warn leading-none">{{ stats.pending_verification }}</span>
-      <span class="text-[11px] text-white/70 whitespace-nowrap">Needs Review</span>
+    <div class="flex flex-col md:flex-row items-center md:items-baseline gap-0.5 md:gap-2 bg-dark text-white rounded-xl px-2 md:px-4 py-2 shadow-float md:shrink-0 text-center md:text-left">
+      <span class="text-lg md:text-xl font-bold text-warn leading-none">{{ stats.pending_verification }}</span>
+      <span class="text-[10px] md:text-[11px] text-white/70 whitespace-nowrap">Needs Review</span>
     </div>
   </div>
 
   <!-- ═══ ROUTE INFO PILL — hidden until Direction pressed ═══ -->
   <div id="route-pill" class="hidden md:absolute md:top-[132px] md:left-1/2 md:-translate-x-1/2 z-10
               bg-dark text-white rounded-xl px-4 py-2 shadow-float
-              flex items-center gap-3 whitespace-nowrap">
-    <span id="route-text" class="text-xs font-semibold">…</span>
+              flex items-center gap-3 max-w-full overflow-hidden">
+    <span id="route-text" class="text-xs font-semibold truncate">…</span>
     <button onclick="clearRoute()" aria-label="Close route"
             class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
       <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -97,6 +114,11 @@
           <p class="text-xs text-ts break-words flex items-start gap-1.5">
             <span id="loc-cls-icon" class="inline-flex shrink-0 mt-[1px]">{% if focus_obs %}{% include "dashboard/_defect_icon.html" with type=focus_obs.detected_class size=16 %}{% endif %}</span><span id="loc-sub-text" class="capitalize">{% if focus_obs %}{{ focus_obs.detected_class }} · {{ focus_obs.created_at|date:"d M Y" }}{% endif %}</span>
           </p>
+          {% if focus_obs.summary %}
+          <p id="loc-summary" class="text-xs text-ts mt-2 leading-relaxed break-words">
+            {{ focus_obs.summary }}
+          </p>
+          {% endif %}
         </div>
         <span id="loc-badge">
           {% if focus_obs %}
@@ -162,24 +184,24 @@
 
   </div>
 
-  <!-- C. Severity insight — floating right rail (desktop), stacked card (mobile) -->
-  <div class="bg-surface rounded-xl shadow-float p-4 z-10
-              flex flex-row items-center gap-4
-              md:absolute md:right-4 md:bottom-4 md:w-[208px] md:flex-col md:items-stretch">
-    <div class="relative w-24 h-24 shrink-0 md:mx-auto">
+  <!-- C. Severity insight — same height as Location/Evidence cards, compact so traffic controls not stacked -->
+  <div class="bg-surface rounded-xl shadow-float p-3 z-10
+              flex flex-row items-center gap-3
+              md:absolute md:right-4 md:bottom-4 md:w-[208px] md:flex-row md:items-center md:h-[168px]">
+    <div class="relative w-[72px] h-[72px] shrink-0">
       <div class="absolute inset-0 rounded-full"
            style="background:conic-gradient(#D96868 0 {{ arc_high }}%, #E8A629 {{ arc_high }}% {{ arc_mid_end }}%, #67B57A {{ arc_mid_end }}% 100%)"></div>
-      <div class="absolute inset-[10px] rounded-full bg-surface flex flex-col items-center justify-center">
-        <span class="text-xl font-bold text-tp leading-none">{{ stats.published }}</span>
-        <span class="text-[10px] text-tm">reports</span>
+      <div class="absolute inset-[8px] rounded-full bg-surface flex flex-col items-center justify-center">
+        <span class="text-lg font-bold text-tp leading-none">{{ stats.published }}</span>
+        <span class="text-[9px] text-tm">reports</span>
       </div>
     </div>
-    <div class="min-w-0 flex-1 md:w-full">
-      <p class="text-[11px] font-medium text-tm uppercase tracking-wide mb-1.5 md:text-center">Severity</p>
+    <div class="min-w-0 flex-1">
+      <p class="text-[10px] font-medium text-tm uppercase tracking-wide mb-1 md:text-left">Severity</p>
       <div class="space-y-1 text-xs">
-        <p class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-bad shrink-0"></span><span class="text-ts">High</span><span class="ml-auto font-semibold text-tp pl-3">{{ sev_high }}</span></p>
-        <p class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-warn shrink-0"></span><span class="text-ts">Medium</span><span class="ml-auto font-semibold text-tp pl-3">{{ sev_mid }}</span></p>
-        <p class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-ok shrink-0"></span><span class="text-ts">Low</span><span class="ml-auto font-semibold text-tp pl-3">{{ sev_low }}</span></p>
+        <p class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-bad shrink-0"></span><span class="text-ts">High</span><span class="ml-auto font-semibold text-tp pl-2">{{ sev_high }}</span></p>
+        <p class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-warn shrink-0"></span><span class="text-ts">Medium</span><span class="ml-auto font-semibold text-tp pl-2">{{ sev_mid }}</span></p>
+        <p class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-ok shrink-0"></span><span class="text-ts">Low</span><span class="ml-auto font-semibold text-tp pl-2">{{ sev_low }}</span></p>
       </div>
     </div>
   </div>
@@ -229,34 +251,64 @@ const SAT = {
   ],
 };
 
+const DEF_LAT = -7.438, DEF_LNG = 112.736, DEF_ZOOM = 16;
 const map = new maplibregl.Map({
   container: 'map',
   style: LIGHT,
-  center: [112.718, -7.446],
-  zoom: 11,
+  center: [DEF_LNG, DEF_LAT],
+  zoom: DEF_ZOOM,
+  maxZoom: 19,
+  pitch: 0,
+  bearing: 0,
+  maxPitch: 65,
+  antialias: true,
 });
-map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
+map.dragRotate.enable();
+map.touchPitch.enable();
+map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
 map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }), 'top-right');
 
-// Satellite toggle — custom control, markers survive setStyle
-let satOn = false;
+// Base map toggle — Light ↔ Satellite ↔ Ion Bing (when Ion key in PowerUp, like TomTom)
+let baseMode = 'light'; // light | sat | ion
+let ionBingStyle = null;
+async function getIonBingStyle(token){
+  try{
+    const r = await fetch(`https://api.cesium.com/v1/assets/2/endpoint?access_token=${token}`);
+    if(!r.ok) return null;
+    const j = await r.json();
+    const url = j.url || j.tileUrl || '';
+    if(!url) return null;
+    // Cesium endpoint returns url with {z}/{x}/{y} or {quadkey}
+    const tiles = [url.includes('{z}') ? url : url + '/{z}/{x}/{y}.png'];
+    return { version: 8, sources: { ionBing: { type: 'raster', tiles, tileSize: 256, attribution: '© Cesium ion · Bing Maps' } }, layers: [{ id: 'ionBing', type: 'raster', source: 'ionBing' }] };
+  }catch{ return null }
+}
 class SatToggle {
   onAdd() {
     const g = document.createElement('div');
     g.className = 'maplibregl-ctrl maplibregl-ctrl-group';
     this._btn = document.createElement('button');
     this._btn.type = 'button';
-    this._btn.title = 'Satellite imagery';
-    this._btn.setAttribute('aria-label', 'Toggle satellite imagery');
-    this._btn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>`;
+    this._btn.title = 'Satellite';
+    this._btn.setAttribute('aria-label', 'Satellite');
+    this._btn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>`;
     this._btn.style.cssText = 'display:flex;align-items:center;justify-content:center;color:#111311';
-    this._btn.onclick = () => {
-      satOn = !satOn;
-      map.setStyle(satOn ? SAT : LIGHT);
-      this._btn.style.background = satOn ? '#050605' : '';
-      this._btn.style.color = satOn ? '#F4A900' : '#111311';
-      this._btn.title = satOn ? 'Back to map' : 'Satellite imagery';
+    this._btn.onclick = async () => {
+      const ionKey = (window.__matamuIonToken&&window.__matamuIonToken()||localStorage.getItem('matamu-cesium-ion-token')||'').trim();
+      if(baseMode === 'light'){
+        baseMode = 'sat'; map.setStyle(SAT);
+        this._btn.style.background = '#050605'; this._btn.style.color = '#F4A900'; this._btn.title = ionKey ? 'Bing (Ion)' : 'Light';
+      } else if(baseMode === 'sat'){
+        if(ionKey){
+          if(!ionBingStyle) ionBingStyle = await getIonBingStyle(ionKey);
+          if(ionBingStyle){ baseMode='ion'; map.setStyle(ionBingStyle); this._btn.style.background='#050605'; this._btn.style.color='#F4A900'; this._btn.title='Light'; return; }
+        }
+        baseMode='light'; map.setStyle(LIGHT);
+        this._btn.style.background=''; this._btn.style.color='#111311'; this._btn.title='Satellite';
+      } else {
+        baseMode='light'; map.setStyle(LIGHT);
+        this._btn.style.background=''; this._btn.style.color='#111311'; this._btn.title='Satellite';
+      }
     };
     g.appendChild(this._btn);
     return g;
@@ -264,6 +316,152 @@ class SatToggle {
   onRemove() { this._btn.parentNode.remove(); }
 }
 map.addControl(new SatToggle(), 'top-right');
+
+// 3D toggle — terrain (MapLibre demo DEM, terrarium) + extruded buildings (OpenFreeMap, gratis)
+// ponytail: raster-dem + vector tiles free, no key. Disable = setTerrain(null) + remove layers.
+let _3dOn = false;
+function ensure3DLayers() {
+  if (!map.getSource('terrain-dem')) {
+    map.addSource('terrain-dem', { type: 'raster-dem', tiles: ['https://demotiles.maplibre.org/terrain-tiles/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 14, encoding: 'terrarium' });
+  }
+  if (!map.getLayer('hillshade')) {
+    try { map.addLayer({ id: 'hillshade', type: 'hillshade', source: 'terrain-dem', paint: { 'hillshade-exaggeration': 0.35 } }); } catch {}
+  }
+  if (!map.getSource('ofm-buildings')) {
+    map.addSource('ofm-buildings', { type: 'vector', tiles: ['https://tiles.openfreemap.org/planet/{z}/{x}/{y}.pbf'], maxzoom: 14 });
+  }
+  if (!map.getLayer('3d-buildings')) {
+    try { map.addLayer({ id: '3d-buildings', type: 'fill-extrusion', source: 'ofm-buildings', 'source-layer': 'building', paint: { 'fill-extrusion-color': '#d8d8d8', 'fill-extrusion-height': ['coalesce', ['get','render_height'], ['get','height'], 12], 'fill-extrusion-base': ['coalesce', ['get','render_min_height'], 0], 'fill-extrusion-opacity': 0.82 } }); } catch {}
+  }
+}
+function set3D(on) {
+  _3dOn = on;
+  try {
+    if (on) {
+      ensure3DLayers();
+      map.setTerrain({ source: 'terrain-dem', exaggeration: 1.35 });
+      map.easeTo({ pitch: 58, bearing: -12, duration: 800 });
+    } else {
+      map.setTerrain(null);
+      if (map.getLayer('hillshade')) map.removeLayer('hillshade');
+      if (map.getLayer('3d-buildings')) map.removeLayer('3d-buildings');
+      map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+    }
+  } catch (e) { console.warn('[3D] toggle failed', e); try { map.setTerrain(null); } catch {} _3dOn = false; }
+  // re-draw overlays after terrain change (style intact, but keep route/coverage)
+  if (map.isStyleLoaded()) { if (_routeGeometry) _drawRoute(); if (_coverageCenter) drawCoverage(_coverageCenter[0], _coverageCenter[1]); }
+  return _3dOn;
+}
+class ThreeDToggle {
+  onAdd() {
+    const g = document.createElement('div'); g.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    this._btn = document.createElement('button'); this._btn.type = 'button';
+    this._btn.title = '3D'; this._btn.setAttribute('aria-label','3D');
+    // Box (2D) vs Mountain (3D) — same as PWA lucide Box/Mountain
+    this._btn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`;
+    this._btn.style.cssText = 'display:flex;align-items:center;justify-content:center;color:#111311';
+    this._btn.onclick = () => {
+      const on = set3D(!_3dOn);
+      this._btn.style.background = on ? '#050605' : '';
+      this._btn.style.color = on ? '#F4A900' : '#111311';
+      this._btn.innerHTML = on
+        ? `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>`
+        : `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`;
+      this._btn.title = on ? '2D' : '3D';
+      this._btn.setAttribute('aria-label', on ? '2D' : '3D');
+    };
+    g.appendChild(this._btn); return g;
+  }
+  onRemove() { this._btn.parentNode.remove(); }
+}
+map.addControl(new ThreeDToggle(), 'top-right');
+
+// Traffic gratis — kotak hijau tipis 6×4[] sama seperti PWA (sim, tanpa TomTom)
+let _trafficOn = false, _trafficRaf = null, _trafficDots = [], _trafficMarkers = []
+const TRAFFIC_MIRRORS_DASH = ['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://lz4.overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter']
+function haversineDash(aLa,aLo,bLa,bLo){ const R=6371, dLa=(bLa-aLa)*Math.PI/180, dLo=(bLo-aLo)*Math.PI/180; const s=Math.sin(dLa/2)**2+Math.cos(aLa*Math.PI/180)*Math.cos(bLa*Math.PI/180)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(s)) }
+function trafficBuildQueryDash(s,w,n,e){ return `[out:json][timeout:25];(way["highway"~"^(motorway|trunk|primary|secondary)$"](${s},${w},${n},${e}););out geom qt;` }
+async function fetchTrafficDash(q){
+  const tryUrls=['/api/overpass', ...TRAFFIC_MIRRORS_DASH]
+  for(const url of tryUrls){
+    const c=new AbortController(), t=setTimeout(()=>c.abort(),12000)
+    try{ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`data=${encodeURIComponent(q)}`,signal:c.signal}); clearTimeout(t); if(!r.ok) continue; const j=await r.json(); if(Array.isArray(j.elements)&&j.elements.length) return j; if(j&&j.error) continue }catch{ clearTimeout(t); continue }
+  } throw new Error('Overpass timeout')
+}
+function clearTrafficDash(){
+  if(_trafficRaf){ cancelAnimationFrame(_trafficRaf); _trafficRaf=null }
+  _trafficMarkers.forEach(m=>{ try{ m.remove() }catch{} }); _trafficMarkers=[]; _trafficDots=[]
+  setTrafficDashStatus('')
+}
+function setTrafficDashStatus(html){
+  const el=document.getElementById('traffic-dash-status')
+  if(!el) return
+  if(!html){ el.innerHTML=''; el.classList.add('hidden'); el.classList.remove('flex'); return }
+  el.innerHTML=html; el.classList.remove('hidden'); el.classList.add('flex')
+}
+async function toggleTrafficDash(btn){
+  if(_trafficOn){ clearTrafficDash(); _trafficOn=false; if(btn){ btn.style.background=''; btn.style.color='#111311'; btn.title='Traffic' } setTrafficDashStatus(''); return }
+  if(map.getZoom()<13) map.easeTo({zoom:14,duration:600})
+  _trafficOn=true; if(btn){ btn.style.background='#050605'; btn.style.color='#F4A900'; btn.title='Traffic' }
+  setTrafficDashStatus('<span class="inline-flex items-center gap-1.5 bg-dark text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow-float"><svg class="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Fetching data…</span>')
+  try{
+    const b=map.getBounds(), s=b.getSouth(), w=b.getWest(), n=b.getNorth(), e=b.getEast(), latC=(s+n)/2, lngC=(w+e)/2, d=0.03
+    let j=null; try{ j=await fetchTrafficDash(trafficBuildQueryDash(latC-d,lngC-d,latC+d,lngC+d)) }catch{ j=null }
+    let roads=[]
+    if(j&&j.elements&&j.elements.length){
+      for(const el of j.elements){ if(el.type!=='way'||!el.geometry||el.geometry.length<2) continue; const coords=el.geometry.map(g=>[g.lon,g.lat]); const segDist=[]; for(let i=0;i<coords.length-1;i++) segDist.push(haversineDash(coords[i][1],coords[i][0],coords[i+1][1],coords[i+1][0])*1000); roads.push({coords, segDist}) }
+    }
+    if(!roads.length){
+      // fallback — geometri jalan asli Sidoarjo (Lingkar Timur dkk), jauh lebih akurat dari grid silang
+      const isDef=Math.abs(latC+7.436)<0.025&&Math.abs(lngC-112.736)<0.025
+      if(isDef) roads=[{coords:[[112.735,-7.449],[112.7365,-7.445],[112.738,-7.44],[112.739,-7.435],[112.741,-7.43],[112.742,-7.425],[112.743,-7.42]]},{coords:[[112.718,-7.438],[112.725,-7.437],[112.733,-7.436],[112.739,-7.436],[112.748,-7.435],[112.755,-7.434]]},{coords:[[112.731,-7.445],[112.733,-7.442],[112.735,-7.438],[112.737,-7.435]]},{coords:[[112.738,-7.45],[112.738,-7.445],[112.738,-7.438],[112.738,-7.43]]},{coords:[[112.733,-7.44],[112.738,-7.44],[112.743,-7.44],[112.746,-7.4395]]},{coords:[[112.735,-7.432],[112.739,-7.432],[112.743,-7.4315]]}].map(r=>({coords:r.coords, segDist:r.coords.slice(0,-1).map((_,i)=>haversineDash(r.coords[i][1],r.coords[i][0],r.coords[i+1][1],r.coords[i+1][0])*1000)}))
+      else { const dd=0.008, mk=(a,b)=>({coords:[a,b], segDist:[haversineDash(a[1],a[0],b[1],b[0])*1000]}); roads=[mk([lngC-dd,latC],[lngC+dd,latC]), mk([lngC,latC-dd],[lngC,latC+dd]), mk([lngC-dd,latC+0.003],[lngC+dd,latC+0.003]), mk([lngC-0.003,latC-dd],[lngC-0.003,latC+dd])] }
+    }
+    // budget 160 kotak kecil
+    const MAX=160, sp=map.getZoom()<14?250:map.getZoom()<15?150:80
+    const planned=roads.map(rd=>{ let len=0; for(let i=0;i<rd.coords.length-1;i++) len+=haversineDash(rd.coords[i][1],rd.coords[i][0],rd.coords[i+1][1],rd.coords[i+1][0])*1000; return Math.max(1,Math.floor(len/sp*1.2)) })
+    const budgets=new Array(roads.length).fill(0); let rem=MAX; const order=planned.map((c,i)=>({c,i})).sort((a,b)=>b.c-a.c); for(const o of order){ if(rem<=0) break; if(o.c<=0) continue; budgets[o.i]=1; rem-- }
+    let totalRem=0; for(let i=0;i<planned.length;i++) totalRem+=Math.max(0,planned[i]-budgets[i]); if(totalRem>0&&rem>0) for(let i=0;i<planned.length;i++){ const cap=Math.max(0,planned[i]-budgets[i]); if(!cap) continue; budgets[i]+=Math.min(cap,Math.floor(cap/totalRem*rem)) }
+    // PowerUp live: if key saved via PowerUp modal, color by real TomTom flow
+    const dashKey=(window.__matamuTomTomKey&&window.__matamuTomTomKey()||localStorage.getItem('matamu-tomtom-key')||'').trim()
+    if(dashKey){
+      const live=await Promise.all(roads.map(async rd=>{
+        const mid=rd.coords[Math.floor(rd.coords.length/2)]
+        try{
+          const r=await fetch(`https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?point=${mid[1]},${mid[0]}&key=${dashKey}`)
+          if(!r.ok) return null
+          const j=await r.json(), f=j.flowSegmentData
+          if(!f||!f.freeFlowSpeed) return null
+          const rr=f.currentSpeed/f.freeFlowSpeed
+          return rr>0.75?'free':rr>0.4?'slow':'jam'
+        }catch{ return null }
+      }))
+      roads.forEach((rd,i)=>{ if(live[i]) rd.liveBucket=live[i] })
+    }
+    const dots=[]
+    for(let ri=0;ri<roads.length;ri++){ const rd=roads[ri], cnt=budgets[ri]; if(!cnt) continue; const mps=(ri%4===0?14:ri%4===1?11:8); for(let k=0;k<cnt;k++){ if(dots.length>=MAX) break; dots.push({road:rd, seg:Math.floor(Math.random()*(rd.coords.length-1)), t:Math.random(), dir:k%2===0?1:-1, mps:mps*(0.7+Math.random()*0.6)}) } }
+    _trafficDots=dots
+    for(let i=0;i<dots.length;i++){
+      const b=dots[i].road.liveBucket||'free'
+      const col=b==='jam'?'#D96868':b==='slow'?'#E8A629':'#00e676'
+      const bg=b==='jam'?'rgba(217,104,104,0.14)':b==='slow'?'rgba(232,166,41,0.12)':'rgba(0,230,118,0.10)'
+      const glow=b==='jam'?'0 0 5px rgba(217,104,104,0.9), 0 0 10px rgba(217,104,104,0.4)':b==='slow'?'0 0 5px rgba(232,166,41,0.9), 0 0 10px rgba(232,166,41,0.35)':'0 0 4px rgba(0,230,120,0.9), 0 0 8px rgba(0,230,120,0.35)'
+      const el=document.createElement('div'); el.style.cssText=`width:6px;height:4px;border:1px solid ${col};border-radius:1px;box-sizing:border-box;background:${bg};box-shadow:${glow};pointer-events:none;`; const m=new maplibregl.Marker({element:el, anchor:'center'}).setLngLat(dots[i].road.coords[0]).addTo(map); _trafficMarkers.push(m)
+    }
+    const liveCount=roads.filter(r=>r.liveBucket).length
+    const liveLabel=liveCount?`LIVE`:`SIM`
+    if(btn) btn.title='Traffic'
+    setTrafficDashStatus(`<span class="inline-flex items-center gap-1.5 bg-white text-tp text-[11px] font-bold px-3 py-1.5 rounded-full shadow-float border border-gray-200"><span class="w-2 h-2 rounded-full ${liveCount?'bg-ok':'bg-accent'}"></span> ${dots.length} boxes • ${roads.length} roads • ${liveLabel} • Completed</span>`)
+    let last=performance.now()
+    const tick=(now)=>{ const dt=Math.min((now-last)/1000,0.1); last=now; if(!_trafficMarkers.length) return; for(let idx=0; idx<_trafficDots.length; idx++){ const d=_trafficDots[idx]; const segLen=d.road.segDist[d.seg]||1; d.t+=(d.mps*dt/segLen)*d.dir; if(d.t>=1){ d.t-=1; d.seg++; if(d.seg>=d.road.coords.length-1){ d.seg=0; d.t=Math.random()*0.3 } } else if(d.t<=0){ d.t+=1; d.seg--; if(d.seg<0){ d.seg=d.road.coords.length-2; d.t=1-Math.random()*0.3 } } const a=d.road.coords[d.seg], b=d.road.coords[d.seg+1]; const lng=a[0]+(b[0]-a[0])*d.t, lat=a[1]+(b[1]-a[1])*d.t; const mk=_trafficMarkers[idx]; if(mk) mk.setLngLat([lng,lat]) } _trafficRaf=requestAnimationFrame(tick) }
+    _trafficRaf=requestAnimationFrame(tick)
+  }catch(e){ console.warn('[TrafficDash] failed',e); clearTrafficDash(); _trafficOn=false; if(btn){ btn.style.background=''; btn.style.color='#111311' } setTrafficDashStatus('<span class="inline-flex items-center gap-1.5 bg-bad text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow-float">Traffic failed — '+((e&&e.message)||'error')+'</span>'); setTimeout(()=>setTrafficDashStatus(''),3000) }
+}
+class TrafficToggleDash {
+  onAdd(){ const g=document.createElement('div'); g.className='maplibregl-ctrl maplibregl-ctrl-group'; this._btn=document.createElement('button'); this._btn.type='button'; this._btn.title='Traffic'; this._btn.setAttribute('aria-label','Traffic'); this._btn.innerHTML=`<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 16H9"/><path d="M19 8a2 2 0 0 0-1-1.73l-2-1.5a2 2 0 0 0-1.4-.57H9.4a2 2 0 0 0-1.4.57l-2 1.5A2 2 0 0 0 5 8v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M7 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/><path d="M17 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>`; this._btn.style.cssText='display:flex;align-items:center;justify-content:center;color:#111311'; this._btn.onclick=()=>toggleTrafficDash(this._btn); g.appendChild(this._btn); return g }
+  onRemove(){ this._btn.parentNode.remove(); }
+}
+map.addControl(new TrafficToggleDash(), 'top-right');
 
 let markers = [];   // [{ m, id, o }]
 let activeId = null;
@@ -379,6 +577,20 @@ function selectObs(o) {
   document.getElementById('loc-cls-icon').innerHTML = defectIcon(o.detected_class, 16);
   document.getElementById('loc-sub-text').textContent =
     `${o.detected_class || '—'} · ${o.created_at ? o.created_at.slice(0, 10) : ''}`;
+  // summary — create if absent (marker click before first load), hide if empty
+  let summEl = document.getElementById('loc-summary');
+  if (!summEl) {
+    summEl = document.createElement('p');
+    summEl.id = 'loc-summary';
+    summEl.className = 'text-xs text-ts mt-2 leading-relaxed break-words';
+    document.getElementById('loc-sub-text').parentNode.appendChild(summEl);
+  }
+  if (o.summary) {
+    summEl.textContent = o.summary;
+    summEl.style.display = '';
+  } else {
+    summEl.style.display = 'none';
+  }
   document.getElementById('loc-trust').textContent = Math.round((o.trust_score || 0) * 100);
   document.getElementById('loc-conf').textContent = Math.round((o.confidence || 0) * 100);
   document.getElementById('loc-date').textContent = o.created_at ? o.created_at.slice(5, 10) : '—';
@@ -494,8 +706,50 @@ function _drawRoute() {
   });
   }
 
-// Re-draw route when style swapped (satellite ↔ light)
-map.on('style.load', () => { if (_routeGeometry) _drawRoute(); });
+// Header collapse — ^ to hide, v to show (expand map)
+const _hdr=document.getElementById('dash-header'), _kpi=document.getElementById('dash-kpi'), _tgl=document.getElementById('dash-header-toggle'), _tglIcon=document.getElementById('dash-toggle-icon')
+if(_hdr&&_tgl){ let collapsed=false; _tgl.onclick=()=>{ collapsed=!collapsed; _hdr.classList.toggle('collapsed',collapsed); if(_kpi) _kpi.classList.toggle('collapsed',collapsed); _tglIcon.innerHTML=collapsed?`<path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/>`:`<path stroke-linecap="round" stroke-linejoin="round" d="M6 15l6-6 6 6"/>`; _tgl.title=collapsed?'Show header':'Hide header'; _tgl.setAttribute('aria-label',collapsed?'Show header':'Hide header'); map.resize() } }
+
+// Re-draw route/coverage when style swapped (satellite ↔ light) — also re-add 3D layers if active
+map.on('style.load', () => {
+  if (_3dOn) { try { ensure3DLayers(); map.setTerrain({ source: 'terrain-dem', exaggeration: 1.35 }); } catch {} }
+  if (_routeGeometry) _drawRoute();
+  if (_coverageCenter) drawCoverage(_coverageCenter[0], _coverageCenter[1]);
+});
+
+// ── 2 km coverage circle (damage detection radius) ──
+let _coverageCenter = null;
+function circlePolygon(lng, lat, radiusKm, steps) {
+  steps = steps || 64;
+  const R = 6371, coords = [];
+  const latR = lat * Math.PI / 180;
+  for (let i = 0; i <= steps; i++) {
+    const brng = (i / steps) * 2 * Math.PI;
+    const lat2 = Math.asin(Math.sin(latR) * Math.cos(radiusKm / R) +
+      Math.cos(latR) * Math.sin(radiusKm / R) * Math.cos(brng));
+    const lng2 = (lng * Math.PI / 180) + Math.atan2(
+      Math.sin(brng) * Math.sin(radiusKm / R) * Math.cos(latR),
+      Math.cos(radiusKm / R) - Math.sin(latR) * Math.sin(lat2));
+    coords.push([lng2 * 180 / Math.PI, lat2 * 180 / Math.PI]);
+  }
+  return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} };
+}
+function drawCoverage(lng, lat) {
+  _coverageCenter = [lng, lat];
+  if (!map.isStyleLoaded()) {
+    map.once('idle', () => drawCoverage(lng, lat));
+    return;
+  }
+  if (map.getLayer('coverage-fill')) map.removeLayer('coverage-fill');
+  if (map.getLayer('coverage-line')) map.removeLayer('coverage-line');
+  if (map.getSource('coverage')) map.removeSource('coverage');
+  map.addSource('coverage', { type: 'geojson', data: circlePolygon(lng, lat, 2) });
+  map.addLayer({ id: 'coverage-fill', type: 'fill', source: 'coverage',
+    paint: { 'fill-color': '#F4A900', 'fill-opacity': 0.06 } });
+  map.addLayer({ id: 'coverage-line', type: 'line', source: 'coverage',
+    paint: { 'line-color': '#F4A900', 'line-width': 1.5, 'line-opacity': 0.55,
+             'line-dasharray': [4, 3] } });
+}
 
 function clearRoute() {
   _routeGeometry = null;
@@ -582,7 +836,19 @@ map.on('load', () => {
   evToggle.style.display = currentBoxes.length ? '' : 'none';
   if (f) { paintZone('bar-trust', f.trust_score, TRUST_GATES); paintZone('bar-conf', f.confidence, CONF_GATES); }
   renderMarkers();
-  if (ALL.length) map.flyTo({ center: [ALL[0].lng, ALL[0].lat], zoom: 12 });
+  // Default: corridor at zoom 16. If GPS is on, center on the user instead.
+  drawCoverage(DEF_LNG, DEF_LAT);
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const lng = pos.coords.longitude, lat = pos.coords.latitude;
+        drawCoverage(lng, lat);
+        map.flyTo({ center: [lng, lat], zoom: DEF_ZOOM });
+      },
+      () => map.flyTo({ center: [DEF_LNG, DEF_LAT], zoom: DEF_ZOOM }),
+      { timeout: 8000 }
+    );
+  }
 });
 </script>
 {% endblock %}

@@ -1,4 +1,4 @@
-"""LLM integration via LiteLLM proxy (Haiku 4.5 + Gemini 3.7 Flash).
+"""LLM integration via LiteLLM proxy (Haiku 4.5 + Sonnet 4.5).
 
 ponytail: try real LiteLLM, fallback to mock if unavailable (local dev without EC2).
 Set LITELLM_BASE_URL + LITELLM_API_KEY in .env for real calls.
@@ -12,7 +12,9 @@ logger = logging.getLogger(__name__)
 LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "")
 LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", "sk-local")
 HAIKU_MODEL = os.getenv("HAIKU_MODEL", "bedrock-claude-haiku-4-5")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
+# Bedrock Sonnet 4.5 — multimodal severity assessment (replaces Gemini 3.7 Flash)
+# Keep GEMINI_MODEL env for backward compat, prefer SONNET_MODEL.
+SONNET_MODEL = os.getenv("SONNET_MODEL", os.getenv("GEMINI_MODEL", "bedrock-claude-sonnet-4-5"))
 
 
 def _client():
@@ -50,7 +52,12 @@ def haiku_summary(detected_class: str, confidence: float, severity: str, locatio
 
 
 def gemini_severity(detected_class: str, confidence: float, img_bytes: bytes = None) -> dict:
-    """Gemini 3.7 Flash: multimodal severity assessment.
+    """Backward-compat alias — use sonnet_severity()."""
+    return sonnet_severity(detected_class, confidence, img_bytes)
+
+
+def sonnet_severity(detected_class: str, confidence: float, img_bytes: bytes = None) -> dict:
+    """Bedrock Claude Sonnet 4.5: multimodal severity assessment.
 
     Returns {"severity": "low|medium|high", "reasoning": str}
     """
@@ -78,7 +85,7 @@ def gemini_severity(detected_class: str, confidence: float, img_bytes: bytes = N
         import json
         client = _client()
         resp = client.chat.completions.create(
-            model=GEMINI_MODEL,
+            model=SONNET_MODEL,
             messages=messages,
             max_tokens=80,
             timeout=15,
@@ -89,7 +96,7 @@ def gemini_severity(detected_class: str, confidence: float, img_bytes: bytes = N
             raw = raw.split("```")[1].lstrip("json").strip()
         return json.loads(raw)
     except Exception as e:
-        logger.warning("gemini_severity failed: %s — using heuristic", e)
+        logger.warning("sonnet_severity failed: %s — using heuristic", e)
         sev = "high" if confidence >= 0.75 else ("medium" if confidence >= 0.5 else "low")
         return {"severity": sev, "reasoning": f"Fallback: confidence {confidence:.0%} → {sev}"}
 

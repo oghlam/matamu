@@ -11,9 +11,10 @@ from ninja import NinjaAPI, UploadedFile, File
 from django.utils import timezone
 from observations.models import Observation, FollowUp
 
-from .cv_pipeline import run_cv, blur_faces_for
+from .cv_pipeline import run_cv, blur_faces_for, get_exif_gps, haversine_km
 from .storage import upload_evidence
-from .llm import haiku_summary, gemini_severity, haiku_dedup_hint
+from .llm import haiku_summary, sonnet_severity, haiku_dedup_hint
+# backward compat: gemini_severity alias still available in llm.py
 from .geocoding import reverse_geocode
 from .agentic import run_agentic_loop
 from .typesafe_eval import evaluate_observation
@@ -76,6 +77,17 @@ def capture(request, lat: float, lng: float,
             tmp.write(chunk)
         tmp_path = Path(tmp.name)
 
+    # 1b. EXIF cross-check: photo-embedded GPS vs claimed position.
+    # Uploads taken elsewhere but claimed here are forced to human review.
+    exif_flag = ""
+    exif_gps = get_exif_gps(tmp_path)
+    if exif_gps and abs(lat) + abs(lng) > 0:
+        gap = haversine_km(lat, lng, exif_gps[0], exif_gps[1])
+        if gap > 0.5:
+            exif_flag = f"Photo location (EXIF) is {gap:.1f} km from reported position."
+            logger.warning("capture: EXIF mismatch %.1f km (claimed %s,%s vs exif %s,%s)",
+                           gap, lat, lng, exif_gps[0], exif_gps[1])
+
     try:
         # 2. CV pipeline (YOLO + IQE)
         cv_result = run_cv(tmp_path)
@@ -92,10 +104,10 @@ def capture(request, lat: float, lng: float,
         # 4. Geocoding
         location_label = reverse_geocode(lat, lng)
 
-        # 5. Bedrock: severity (Gemini) + summary (Haiku)
+        # 5. Bedrock: severity (Sonnet 4.5) + summary (Haiku 4.5)
         with open(blurred_path, "rb") as f:
             img_bytes = f.read()
-        gemini_result = gemini_severity(detected_class, confidence, img_bytes)
+        sonnet_result = sonnet_severity(detected_class, confidence, img_bytes)
 
         # 6. TypeSafe AI: structured severity + classification + urgency + quality
         ts_result = evaluate_observation(
@@ -108,11 +120,11 @@ def capture(request, lat: float, lng: float,
             num_detections=len(detections),
         )
 
-        # Use TypeSafe severity if available (calibrated), else Gemini
+        # Use TypeSafe severity if available (calibrated), else Bedrock Sonnet
         if ts_result.get("typesafe_used"):
             severity = ts_result["severity"]["level"]
         else:
-            severity = gemini_result["severity"]
+            severity = sonnet_result["severity"]
 
         summary = haiku_summary(detected_class, confidence, severity, location_label)
 
@@ -143,9 +155,15 @@ def capture(request, lat: float, lng: float,
             typesafe_result=ts_result,
         )
 
+        # 8b. EXIF mismatch overrides everything → human must verify location
+        if exif_flag:
+            status = "pending_verification"
+            review_reason = (review_reason + " " + exif_flag).strip()
+
         # 9. Persist
         obs = Observation.objects.create(
             lat=lat, lng=lng,
+            gps_accuracy=gps_accuracy,
             detected_class=detected_class,
             confidence=confidence,
             bbox=top["bbox"],

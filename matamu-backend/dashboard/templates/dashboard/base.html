@@ -116,10 +116,27 @@
       </svg>
       <span class="pointer-events-none absolute left-14 whitespace-nowrap bg-dark text-white text-xs font-medium px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 z-50">Follow-up</span>
     </a>
+
+    <a href="{% url 'dashboard:agentic' %}" aria-label="Agentic"
+       class="group relative w-11 h-11 flex items-center justify-center rounded-lg transition-colors
+              {% if page == 'agentic' %}bg-dark text-white{% else %}text-ts hover:bg-s2 hover:text-tp{% endif %}">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+        <path stroke-linecap="square" stroke-linejoin="miter" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+      </svg>
+      <span class="pointer-events-none absolute left-14 whitespace-nowrap bg-dark text-white text-xs font-medium px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 z-50">Agentic</span>
+    </a>
     {% endwith %}
 
-    <!-- Spacer + reporter shortcut + logout -->
+    <!-- PowerUp + reporter + logout -->
     <div class="mt-auto flex flex-col items-center gap-1">
+      <button id="powerup-btn" aria-label="Power Up" title="Power Up — provider keys"
+         class="group relative w-11 h-11 flex items-center justify-center rounded-lg text-ts hover:bg-accent/10 hover:text-accent transition-colors">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        <span id="powerup-dot" class="hidden absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent ring-2 ring-surface"></span>
+        <span class="pointer-events-none absolute left-14 whitespace-nowrap bg-dark text-white text-xs font-medium px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 z-50">Power Up</span>
+      </button>
       <a href="{{ PWA_URL }}" target="_blank" rel="noopener" aria-label="Reporter"
          class="group relative w-11 h-11 flex items-center justify-center rounded-lg text-ts hover:bg-s2 hover:text-tp transition-colors">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
@@ -167,6 +184,114 @@
 
   </div><!-- /shell -->
 
+  <!-- PowerUp Modal — ROUND STATION · PROVIDER SETTINGS (like God’s Eye) -->
+  <div id="powerup-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div id="powerup-backdrop" class="absolute inset-0 bg-dark/60 backdrop-blur-sm"></div>
+    <div class="relative w-full max-w-[520px] max-h-[90vh] overflow-auto bg-surface rounded-2xl shadow-float border border-gray-100">
+      <div class="sticky top-0 bg-surface/90 backdrop-blur px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
+        <div>
+          <p class="text-[11px] font-bold tracking-widest text-accent uppercase">ROUND STATION · PROVIDER SETTINGS</p>
+          <h2 class="text-base font-bold text-tp mt-1">Power up the globe</h2>
+          <p class="text-xs text-ts mt-1 leading-relaxed">The map already flies keyless. Every key below switches on another real feed — paste one and it’s saved into this app’s local configuration. Without it, the map runs with simulation — no problem.</p>
+        </div>
+        <button id="powerup-close" aria-label="Close" class="w-8 h-8 rounded-full bg-s2 flex items-center justify-center text-ts hover:bg-gray-200 transition-colors shrink-0">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-5 space-y-4">
+        <!-- TOMTOM -->
+        <section class="rounded-xl border border-gray-200 bg-white p-4">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <strong class="text-sm font-bold text-tp">TOMTOM</strong>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">FREE</span>
+            <a href="https://developer.tomtom.com" target="_blank" rel="noopener" class="ml-auto text-[11px] font-bold text-accent hover:underline">GET KEY ↗</a>
+          </div>
+          <p class="text-xs text-ts mt-1.5">Real live traffic — green/orange/red flow. Without a key it runs a simulation on real roads.</p>
+          <div class="mt-3 flex gap-2">
+            <input id="powerup-tomtom" type="password" autocomplete="off" spellcheck="false" placeholder="paste TOMTOM_API_KEY" class="flex-1 !bg-s2 text-xs font-mono">
+            <button id="powerup-save-tomtom" class="px-4 py-2 rounded-lg bg-dark text-white text-xs font-bold hover:bg-dark/90 transition-colors">Save</button>
+          </div>
+          <div class="mt-2 flex items-center gap-2">
+            <span id="powerup-status-tomtom" class="text-[11px] text-tm"></span>
+            <button id="powerup-remove-tomtom" class="hidden text-[11px] font-bold text-bad hover:underline ml-auto">Remove</button>
+          </div>
+        </section>
+        <!-- CESIUM ION -->
+        <section class="rounded-xl border border-gray-200 bg-white p-4">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-sky-500"></span>
+            <strong class="text-sm font-bold text-tp">CESIUM ION</strong>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">FREE</span>
+            <a href="https://ion.cesium.com/tokens" target="_blank" rel="noopener" class="ml-auto text-[11px] font-bold text-accent hover:underline">GET KEY ↗</a>
+          </div>
+          <p class="text-xs text-ts mt-1.5">Bing aerial & labels + world terrain + Google photoreal 3D via Ion. Without a key the map uses keyless OSM/Esri.</p>
+          <div class="mt-3 flex gap-2">
+            <input id="powerup-cesium" type="password" autocomplete="off" spellcheck="false" placeholder="paste CESIUM_ION_TOKEN" class="flex-1 !bg-s2 text-xs font-mono">
+            <button id="powerup-save-cesium" class="px-4 py-2 rounded-lg bg-dark text-white text-xs font-bold hover:bg-dark/90 transition-colors">Save</button>
+          </div>
+          <div class="mt-2 flex items-center gap-2">
+            <span id="powerup-status-cesium" class="text-[11px] text-tm"></span>
+            <button id="powerup-remove-cesium" class="hidden text-[11px] font-bold text-bad hover:underline ml-auto">Remove</button>
+          </div>
+        </section>
+          <p class="text-[11px] text-tm mt-2">Keys are stored locally in this browser (localStorage). Restrict them at the provider for production.</p>
+        <!-- Tip -->
+        <p class="text-[11px] text-tm bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">Tip: Leave empty to keep keyless. Live feeds activate on next map toggle.</p>
+      </div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    const LS_TOM='matamu-tomtom-key', LS_ION='matamu-cesium-ion-token';
+    const TEST_TOM='Q7EzTO3VfcqBCHSDJjqZg3MjvwnthFVh';
+    const TEST_ION='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IklSZjhqbzhZMW9OaEdMRjciLCJqdGkiOiJmN2UyMWYyYy0wZmE5LTQ0NWMtOGZkNy00NWYyYjlmMzk2NzAiLCJpZCI6NDg4MjY4LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODkwOTk1Njh9.dZKlhhV3tBgvbP0JGy8qry-57WL-mSlWHYKttSlMKuc';
+    try{ if(!localStorage.getItem(LS_TOM)) localStorage.setItem(LS_TOM, TEST_TOM); }catch{}
+    try{ if(!localStorage.getItem(LS_ION)) localStorage.setItem(LS_ION, TEST_ION); }catch{}
+    const btn=document.getElementById('powerup-btn');
+    const modal=document.getElementById('powerup-modal');
+    const backdrop=document.getElementById('powerup-backdrop');
+    const closeBtn=document.getElementById('powerup-close');
+    const dot=document.getElementById('powerup-dot');
+    const tomInput=document.getElementById('powerup-tomtom'), tomSave=document.getElementById('powerup-save-tomtom'), tomRemove=document.getElementById('powerup-remove-tomtom'), tomStatus=document.getElementById('powerup-status-tomtom');
+    const ionInput=document.getElementById('powerup-cesium'), ionSave=document.getElementById('powerup-save-cesium'), ionRemove=document.getElementById('powerup-remove-cesium'), ionStatus=document.getElementById('powerup-status-cesium');
+    function refreshOne(input, statusEl, removeBtn, key, label){
+      const v=(localStorage.getItem(key)||'').trim(); const has=!!v;
+      input.value=''; input.placeholder=has?`${label} saved — paste to replace`:`paste ${label}`;
+      statusEl.textContent=has?'● Saved — live feed will be used':'○ Not set — keyless mode';
+      statusEl.className=has?'text-[11px] text-ok font-medium':'text-[11px] text-tm';
+      removeBtn.classList.toggle('hidden',!has);
+    }
+    function refresh(){
+      refreshOne(tomInput, tomStatus, tomRemove, LS_TOM, 'TOMTOM_API_KEY');
+      refreshOne(ionInput, ionStatus, ionRemove, LS_ION, 'CESIUM_ION_TOKEN');
+      const hasAny=!!(localStorage.getItem(LS_TOM)||localStorage.getItem(LS_ION)||'').trim();
+      if(dot) dot.classList.toggle('hidden', hasAny);
+    }
+    function open(){ modal.classList.remove('hidden'); refresh(); setTimeout(()=>tomInput.focus(),80) }
+    function close(){ modal.classList.add('hidden') }
+    btn&&btn.addEventListener('click', open);
+    closeBtn&&closeBtn.addEventListener('click', close);
+    backdrop&&backdrop.addEventListener('click', close);
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape'&&!modal.classList.contains('hidden')) close() });
+    function bindSave(input, statusEl, key){
+      return ()=>{
+        const v=input.value.trim();
+        if(!v){ statusEl.textContent='Paste a key first.'; statusEl.className='text-[11px] text-bad'; return }
+        if(v.length>512||/\s/.test(v)){ statusEl.textContent='Invalid key format.'; statusEl.className='text-[11px] text-bad'; return }
+        localStorage.setItem(key, v); input.value=''; refresh(); statusEl.textContent='Saved.'; statusEl.className='text-[11px] text-ok font-bold';
+      }
+    }
+    tomSave&&tomSave.addEventListener('click', bindSave(tomInput, tomStatus, LS_TOM));
+    ionSave&&ionSave.addEventListener('click', bindSave(ionInput, ionStatus, LS_ION));
+    tomRemove&&tomRemove.addEventListener('click', ()=>{ if(!confirm('Remove TomTom key?')) return; localStorage.removeItem(LS_TOM); refresh(); });
+    ionRemove&&ionRemove.addEventListener('click', ()=>{ if(!confirm('Remove Cesium Ion token?')) return; localStorage.removeItem(LS_ION); refresh(); });
+    refresh();
+    window.__matamuTomTomKey = ()=>localStorage.getItem(LS_TOM)||'';
+    window.__matamuIonToken = ()=>localStorage.getItem(LS_ION)||'';
+  })();
+  </script>
+
   <!-- Mobile bottom nav -->
   <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-gray-100 flex"
        style="padding-bottom:env(safe-area-inset-bottom)">
@@ -198,6 +323,13 @@
         <path stroke-linecap="square" stroke-linejoin="miter" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
       </svg>
       <span>Follow-up</span>
+    </a>
+    <a href="{% url 'dashboard:agentic' %}"
+       class="flex-1 flex flex-col items-center py-2.5 gap-0.5 text-xs font-medium {% if page == 'agentic' %}text-accent{% else %}text-ts{% endif %}">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+        <path stroke-linecap="square" stroke-linejoin="miter" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+      </svg>
+      <span>Agentic</span>
     </a>
     {% endwith %}
   </nav>

@@ -143,3 +143,44 @@ def _mock_result() -> dict:
         "blur": 120.0,
         "brightness": 130.0,
     }
+
+
+def get_exif_gps(img_path: str | Path) -> tuple[float, float] | None:
+    """Read GPS coordinates embedded in photo EXIF. Returns (lat, lng) or None.
+
+    Canvas snapshots (live camera) and stripped photos (e.g. WhatsApp)
+    carry no EXIF — caller must treat None as "unknown", not "fake".
+    """
+    try:
+        from PIL import Image
+        from PIL.ExifTags import TAGS
+        img = Image.open(img_path)
+        exif = img._getexif() or {}
+        gps = None
+        for tag, val in exif.items():
+            if TAGS.get(tag) == "GPSInfo":
+                gps = val
+                break
+        if not gps:
+            return None
+
+        def _dec(dms, ref):
+            deg = float(dms[0]) + float(dms[1]) / 60.0 + float(dms[2]) / 3600.0
+            return -deg if ref in ("S", "W") else deg
+
+        return (_dec(gps[2], gps[1]), _dec(gps[4], gps[3]))
+    except Exception as e:
+        logger.debug("exif: no GPS readable — %s", e)
+        return None
+
+
+def haversine_km(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
+    """Great-circle distance in kilometers."""
+    import math
+    R = 6371.0
+    d_la = math.radians(b_lat - a_lat)
+    d_lo = math.radians(b_lng - a_lng)
+    s = (math.sin(d_la / 2) ** 2
+         + math.cos(math.radians(a_lat)) * math.cos(math.radians(b_lat))
+         * math.sin(d_lo / 2) ** 2)
+    return 2 * R * math.asin(math.sqrt(s))

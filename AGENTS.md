@@ -7,13 +7,67 @@
 
 ---
 
+## STATUS BERLAKU (24 Sep 2026) — BACA DULU
+
+Sprint 0–4 selesai lokal + **24 Sep Map 3D + Traffic + PowerUp + Base map Ion** selesai (PWA & dashboard). Bagian "Sprint Pertama: SPRINT 0" di bawah adalah **arsip historis**, bukan tugas aktif.
+
+| Layanan | URL lokal | Cara jalan |
+|---|---|---|
+| Django + Operator Dashboard | `http://127.0.0.1:8080/dashboard/` (login `admin` / `<redacted-password>`) | via `start-dev.bat` |
+| API + docs | `http://127.0.0.1:8080/api/docs` | sama |
+| PWA Warga | `http://localhost:5173` | sama |
+| Overpass proxy | `http://127.0.0.1:8080/api/overpass` | Django multi-mirror (reliable) |
+
+**Kenapa port 8080, bukan 8000:** port 8000 diklaim Windows service (`svchost`) — Django tidak punya izin. Jangan pindah kembali.
+
+**Akun/pembeda penting:**
+- gcloud aktif: `oghlam@gmail.com`, project `<redacted-gcp-project>` (Maps Geocoding aktif di sini)
+- OAuth Client ID Google **belum dibuat** (butuh 1 langkah browser) → backend `BYPASS_AUTH=1`, PWA mode dev
+- DB lokal: `matamu-backend/db.sqlite3` — 6 foto demo Lingkar Timur (id 3–8), koordinat manual (foto tanpa EXIF GPS)
+
+**Perintah kunci:**
+```cmd
+start-dev.bat                                   # jalankan backend + PWA sekaligus
+cd matamu-backend && venv\Scripts\python.exe manage.py seed_roles   # (sekali saja) grup Operator/Supervisor
+venv\Scripts\python.exe docs/agentic_scenario_runner.py             # harap 4/4 PASS
+venv\Scripts\python.exe docs/integration_test.py                    # harap 42/42 PASS
+```
+> Catatan Windows: output Python non-ASCII butuh `$env:PYTHONIOENCODING="utf-8"`. Jangan print panah `→`/emoji ke console (cp1252 crash).
+
+---
+
 ## Aturan Main
 
-1. **Baca konteks dulu** sebelum mulai coding — cek `docs/sprints/SPRINT_PLAN.md` dan `.workbuddy-ai/memory/MEMORY.md`
+1. **Baca konteks dulu** sebelum mulai coding — cek `docs/sprints/SPRINT_PLAN.md` dan `docs/sprints/PROGRESS-2026-09-23.md`
 2. **Jangan publish bahan mentah** ke GitHub — `.gitignore` sudah set (proposal, blueprint, cover, credentials)
 3. **Satu PR per fitur** — jangan campur scope antar sprint
 4. **Test sebelum commit** — pastikan import berhasil, tidak ada syntax error
 5. **Dokumentasi up-to-date** — update `docs/` setiap ada perubahan arsitektur
+6. **LANGUAGE POLICY — WAJIB:**
+   - ✅ **Web/Mobile UI**: Full English (menus, labels, buttons, placeholders, error messages, toasts)
+   - ✅ **Code**: English (variable names, function names, comments, docstrings)
+   - ✅ **LLM prompts**: English (Bedrock, TypeSafe, Sonnet)
+   - ✅ **Git commits**: English (commit messages, PR descriptions)
+   - ✅ **User-facing docs**: English (README, technical report, API docs)
+   - ⚠️ **Street names**: Keep local Indonesian (e.g., "Jl. Lingkar Timur" — JANGAN "East Ring Road")
+   - ⚠️ **Internal docs**: Boleh Bahasa Indonesia (AGENTS.md, PROGRESS.md, SPRINT_PLAN.md)
+7. **Keputusan arsitektur (jangan diubah tanpa diskusi):**
+   - Operator = Django template `/dashboard/` (bukan React). Warga = React PWA. PWA route `/admin` sudah dihapus.
+   - Presentasi ke juri 100% dashboard + PWA; `/admin/` Django tetap hidup tapi tidak dibicarakan (login dashboard bergantung padanya).
+   - Basemap gratis: CARTO Positron + Esri World Imagery + label (tanpa billing). Google hanya untuk geocoding server-side. Routing demo: OSRM publik.
+   - RBAC: grup `Operator` vs `Supervisor` (custom permission `can_moderate_iqe`); user dibuat via `/admin/auth/user/`. Jangan buka gate tanpa izin tertulis.
+8. **Evidence & data:**
+   - JANGAN kembalikan URL `mock://` untuk user-facing — fallback dev wajib `/media/` lokal (S3 hanya di prod).
+   - Koordinat demo = plot manual koridor Lingkar Timur. JANGAN klaim "GPS dari kamera" ke juri (foto tanpa EXIF GPS).
+   - Foto tanpa EXIF >500m dari klaim = paksa `pending` (frontend tolak, backend override). Ambang: 0.5 km.
+   - GPS wajib aktif untuk submit PWA. Status lifecycle: pending → published → acknowledged → resolved. `resolved` = sudah diperbaiki fisik (pin hilang dari peta).
+9. **Defect icons (sumber tunggal):**
+   - Artwork: `docs/matamu-road-defect-icons/*.svg`. Django: partial `_defect_icon.html` + `static/dashboard/icons/`. React: `public/icons/` + `DefectIcon.jsx`. JANGAN duplikat mapping, JANGAN pakai Lucide/emoji untuk kelas defect.
+10. **Stack terkunci (jangan upgrade sembarang):**
+    - `maplibre-gl@4.7.1` (v6 merusak Vite optimizer), Tailwind v3 (`theme()` tidak jalan di `@layer base`), font JetBrains Mono.
+    - Ikon menu: `square` cap + `miter` join (tajam). Tooltip rail: custom saja (hapus atribut `title` bawaan).
+11. **Sebelum klaim selesai:** render 4 halaman dashboard 200 + `node --check` untuk JS inline + `npm run build` untuk PWA + hapus `dist/` lagi.
+12. **DB demo:** hanya id 3–8. Data testing WAJIB dibersihkan setelah integration test (jangan biarkan lat=0 atau duplikat).
 
 ---
 
@@ -92,11 +146,11 @@ Tugas:
 │     -H "Content-Type: application/json" \
 │     -d '{"model": "bedrock-claude-haiku-4-5", "messages": [{"role": "user", "content": "Hello"}]}'
 │   → harus return response dari Haiku
-├── Test Gemini 3.7 Flash (multimodal):
+├── Test Bedrock Sonnet 4.5 (multimodal):
 │   curl -X POST http://localhost:4000/v1/chat/completions \
 │     -H "Content-Type: application/json" \
-│     -d '{"model": "gemini-3.7-flash", "messages": [{"role": "user", "content": "Hello"}]}'
-│   → harus return response dari Gemini
+│     -d '{"model": "bedrock-claude-sonnet-4-5", "messages": [{"role": "user", "content": "Hello"}]}'
+│   → harus return response dari Sonnet
 └── Catat: jika ada model yang gagal, dokumentasikan di docs/deployment/model-access.md
 ```
 
@@ -238,7 +292,7 @@ Tugas:
 
 ### SPRINT 2 (30 Sep-6 Okt) — Backend + Bedrock
 - Django Ninja API (capture endpoint)
-- Bedrock Haiku (summary) + Gemini Flash (severity)
+- Bedrock Haiku (summary) + Bedrock Sonnet 4.5 (severity)
 - PostGIS geo queries
 - Agentic loop (perception → decision → action)
 - Django Admin sebagai operator dashboard backup
@@ -256,7 +310,7 @@ Tugas:
 - Technical report draft
 
 ### SPRINT 5 (21-26 Okt) — Demo + Submit
-- Video ≤5 menit (Gemini 3.1 Flash TTS voice-over)
+- Video ≤5 menit (Gemini 3.1 Flash TTS voice-over — via LiteLLM, not severity)
 - Technical report final
 - Submit ke Devpost
 
@@ -279,17 +333,17 @@ Ketika user minta mulai coding, kerjakan dalam urutan ini:
 
 | Tool | Versi | Untuk |
 |------|-------|-------|
-| Python | 3.12 | Backend + CV |
-| OpenCV | 5.x | Core CV pipeline |
-| Ultralytics | latest | YOLOv11 training + export |
-| Django | 5.x | Backend + Admin |
-| Django Ninja | latest | API layer |
-| PostgreSQL | 16 | Database |
-| PostGIS | 3.x | Geo queries |
-| Node.js | 22 LTS | Frontend build |
-| Vite | 5.x | PWA bundler |
-| Tailwind | 3.x | Styling |
-| MapLibre GL | latest | Map rendering |
-| LiteLLM | latest | LLM proxy |
-| Google Colab | free GPU | YOLO training (opsional) |
-| Roboflow | free | Dataset + labeling |
+| Python (venv) | 3.13 (venv `matamu-backend/venv`) | Backend + CV |
+| OpenCV | 5.0.0.93 | Core CV pipeline |
+| Ultralytics | 8.4.159 | YOLOv11 inference |
+| Django | 5.1 | Backend + Admin + Dashboard |
+| Django Ninja | 1.3.0 | API layer |
+| google-auth | 2.58.0 | Verifikasi ID-token PWA |
+| exifr (npm) | latest | EXIF check galeri PWA |
+| piexif (pip, dev-test) | 1.1.3 | Craft foto EXIF untuk spoof test |
+| Node.js | 24 (dev) | Frontend build |
+| Vite | 8.3.0 | PWA bundler |
+| Tailwind | 3.4.19 | Styling |
+| MapLibre GL | 4.7.1 (TERKUNCI) | Map rendering |
+| LiteLLM | via proxy (mock lokal) | LLM proxy |
+| PostgreSQL | 16 (EC2; lokal pakai SQLite) | Database |

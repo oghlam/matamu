@@ -12,11 +12,11 @@
 Backend:    Django 5 + Django Ninja (API) + Django Admin (operator dashboard)
 Database:   PostgreSQL + PostGIS (via django-contrib-gis)
 CV:         OpenCV 5 + YOLOv11n (ONNX) + SFace (privacy blur) + IQE
-LLM:        Haiku 4.5 (fast tasks) + Gemini 3.7 Flash (multimodal reasoning + agentic)
+LLM:        Haiku 4.5 (fast tasks) + Bedrock Sonnet 4.5 (multimodal severity)
 Storage:    S3 (evidence media)
 Frontend:   React + Vite + Tailwind CSS (PWA — one codebase, mobile + web)
-Map:        MapLibre GL JS + OpenStreetMap (base) + Google Maps API (geocoding + satellite)
-Voice:      Gemini 3.1 Flash TTS (demo video narration)
+Map:        MapLibre GL JS + OpenStreetMap (base) + Google Maps API (geocoding) + Esri/Cesium Ion
+Voice:      Gemini 3.1 Flash TTS (demo video narration — via LiteLLM)
 Proxy:      LiteLLM (unified access to all models)
 ```
 
@@ -78,7 +78,7 @@ Week 5  │ OCT 21-26 │ SPRINT 5  │ Demo prep + Video + Tech report + Submit
 |---|------|--------|--------|
 | 1 | EC2 (krusetre) t2.small access | ✅ Have it | SSH key ready, Python 3.12 + venv |
 | 2 | Bedrock model access | ✅ Haiku 4.5 available | Confirm API access from EC2 |
-| 3 | LiteLLM proxy | ✅ Configured | Verify Gemini 3.7 Flash reachable from EC2 |
+| 3 | LiteLLM proxy | ✅ Configured | Verify Bedrock Sonnet 4.5 reachable from EC2 |
 | 4 | Google Maps API key | ✅ Have it | Enable Geocoding + Static Maps API |
 | 5 | AWS S3 bucket | ⬜ Need to create | matamu-evidence |
 | 6 | PostgreSQL + PostGIS | ⬜ Need to set up | On EC2 or RDS |
@@ -204,7 +204,7 @@ Day 1-2: API Core (Django + Django Ninja)
 
 Day 3-4: Bedrock Integration (via LiteLLM proxy)
 ├── Haiku 4.5: condition summary from detection results
-├── Gemini 3.7 Flash: severity assessment (multimodal — send image)
+├── Bedrock Sonnet 4.5: severity assessment (multimodal — send image)
 ├── Haiku 4.5: dedup hints (compare with nearby reports)
 ├── Implement prompt templates
 └── Test: capture → CV → Bedrock → structured response
@@ -222,7 +222,7 @@ Day 5: Database Layer (Postgres + PostGIS via django-contrib-gis)
 
 Day 6: Agentic Vision Loop
 ├── Perception: YOLO detection + confidence + IQE trust score
-├── Decision: Gemini Flash evaluates → severity + action
+├── Decision: Sonnet 4.5 evaluates → severity + action (or TypeSafe confidence gate)
 ├── Action: system changes status, creates follow-up, alerts
 ├── Implement trace logging (for Agentic track evidence)
 └── Test: low-confidence detection → pending_verification flow
@@ -297,7 +297,7 @@ Day 7: Integration + Polish
 Day 1-2: Agentic Vision Hardening
 ├── Perception → Decision → Action trace (documented)
 ├── Scenario A: high confidence + high trust → auto-publish + Haiku summary
-├── Scenario B: low confidence → Gemini Flash second opinion → pending
+├── Scenario B: low confidence → Sonnet 4.5 second opinion → pending
 ├── Scenario C: 3+ reports same area → recurring flag + follow-up alert
 ├── Scenario D: SFace detects face → blur before publish
 ├── Record traces for each scenario (for Agentic track submission)
@@ -363,7 +363,7 @@ Day 3-4: Video (≤5 minutes)
 ├── Script: intro team → problem → architecture → demo → results
 ├── Record screen: PWA walkthrough (warga capture + map + admin dashboard)
 ├── Show architecture diagram in video
-├── Voice-over: Gemini 3.1 Flash TTS (or manual narration)
+├── Voice-over: Gemini 3.1 Flash TTS via LiteLLM (or manual narration)
 ├── Edit: keep under 5 minutes
 ├── Upload: YouTube unlisted or Vimeo
 └── Test: link works, video plays, audio clear
@@ -426,7 +426,7 @@ Day 6: Final Submission (Oct 26)
 ### Immediate Actions (this weekend):
 
 1. **SSH into EC2 (krusetre)** → install Python venv, OpenCV 5, Ultralytics, Django 5
-2. **Verify Bedrock + LiteLLM** → test Haiku 4.5 and Gemini 3.7 Flash from EC2
+2. **Verify Bedrock + LiteLLM** → test Haiku 4.5 and Sonnet 4.5 from EC2
 3. **Download RDD dataset** → GitHub/Roboflow (road damage detection)
 4. **Take 5-10 photos** → Jalan Lingkar Timur or any Sidoarjo road with visible damage
 5. **Create S3 bucket** → matamu-evidence

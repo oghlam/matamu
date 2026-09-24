@@ -23,7 +23,7 @@ See `docs/architecture/system-architecture.md` for full diagram.
 **Stack:**
 - Backend: Django 5 + Django Ninja (REST API)
 - CV: OpenCV 5 + YOLOv11n (ONNX) + SFace (YuNet) + IQE
-- LLM: Haiku 4.5 (summary) + Gemini 3.7 Flash (severity) via LiteLLM
+- LLM: Haiku 4.5 (summary) + Bedrock Sonnet 4.5 (severity) via LiteLLM
 - TypeSafe AI: 5-question structured evaluation (confidence-gated routing)
 - Storage: PostgreSQL 16 + PostGIS (geo queries) + AWS S3 (evidence)
 - Frontend: React + Vite PWA (warga) + Django template dashboard (operator)

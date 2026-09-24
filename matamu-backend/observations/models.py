@@ -10,6 +10,7 @@ class Observation(models.Model):
     # ponytail: lat/lng Float locally, PointField only if USE_POSTGIS=1 on EC2
     lat = models.FloatField()
     lng = models.FloatField()
+    gps_accuracy = models.FloatField(null=True, blank=True)  # meters, from GeolocationCoordinates.accuracy
     detected_class = models.CharField(max_length=32)  # pothole etc
     confidence = models.FloatField()
     bbox = models.JSONField(default=dict)  # {x,y,w,h}

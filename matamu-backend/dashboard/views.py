@@ -141,3 +141,30 @@ def followup_action(request, pk):
         obs.save(update_fields=["status"])
         FollowUp.objects.create(observation=obs, status="resolved")
     return redirect("dashboard:followup")
+
+
+@login_required
+def agentic_traces(request):
+    from pathlib import Path
+    traces_dir = Path(__file__).resolve().parents[2] / "docs" / "agentic-traces"
+    if not traces_dir.exists():
+        return render(request, "dashboard/agentic.html", {"traces": [], "page": "agentic"})
+    # only real capture traces (trace_*.json), not scenario_*.json
+    trace_files = sorted(traces_dir.glob("trace_*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    traces = []
+    for f in trace_files[:50]:  # limit 50 most recent
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            traces.append({
+                "filename": f.name,
+                "timestamp": data.get("timestamp", ""),
+                "detected_class": data.get("input", {}).get("detected_class", ""),
+                "confidence": data.get("input", {}).get("confidence", 0),
+                "final_status": data.get("output", {}).get("final_status", ""),
+                "decision_reason": data.get("decision", {}).get("reason", ""),
+                "routing": data.get("decision", {}).get("routing", ""),
+                "actions": data.get("action", {}).get("actions", []),
+            })
+        except Exception:
+            pass  # skip malformed JSON
+    return render(request, "dashboard/agentic.html", {"traces": traces, "page": "agentic"})

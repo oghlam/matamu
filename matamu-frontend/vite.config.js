@@ -10,7 +10,7 @@ export default defineConfig({
       manifest: {
         name: 'Mat(a)Mu — Mata Jalan Masyarakat',
         short_name: 'MataMu',
-        description: 'Laporkan kerusakan jalan di sekitar Anda',
+        description: 'Report road damage around you',
         theme_color: '#9FC2C5',
         background_color: '#F8F8F3',
         display: 'standalone',
@@ -29,6 +29,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/media': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
