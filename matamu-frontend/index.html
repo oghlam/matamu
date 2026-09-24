@@ -9,8 +9,24 @@
     <meta name="theme-color" content="#9FC2C5" />
     <meta name="description" content="Report road damage around you" />
     <title>Mat(a)Mu</title>
+    <style>
+      /* Real preload — visible before React, removed after mount (not cosmetic) */
+      #preload{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#F8F8F3;color:#111311;font-family:'JetBrains Mono',monospace;transition:opacity .35s ease}
+      #preload.out{opacity:0;pointer-events:none}
+      #preload img{width:96px;height:96px;animation:preload-pulse 1.6s ease-in-out infinite}
+      @keyframes preload-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.04);opacity:.9}}
+      #preload .bar{width:96px;height:3px;border-radius:999px;background:#E8E8E0;overflow:hidden}
+      #preload .bar i{display:block;height:100%;width:38%;background:#9FC2C5;border-radius:999px;animation:preload-shimmer 1.1s ease-in-out infinite}
+      @keyframes preload-shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+      #preload p{margin:0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#686C68}
+    </style>
   </head>
   <body>
+    <div id="preload" aria-hidden="false">
+      <img src="/icon-192.png" alt="Mat(a)Mu" width="96" height="96" decoding="async" />
+      <div class="bar" aria-hidden="true"><i></i></div>
+      <p>Loading — Mata Jalan Masyarakat</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
