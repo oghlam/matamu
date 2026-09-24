@@ -34,6 +34,7 @@ jobs:
           rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
             --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' \
             --exclude 'matamu-backend/db.sqlite3' --exclude 'matamu-backend/venv' \
+            --exclude 'matamu-backend/.env' --exclude '.env' \
             --exclude '.github' --exclude 'node_modules' \
             ./ $EC2_USER@$EC2_HOST:/home/ec2-user/matamu/
 
@@ -44,6 +45,15 @@ jobs:
           ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'DEPLOY_SCRIPT'
             set -e
             VENV_PATH="/home/ec2-user/matamu-env"
+            # sync .env to new location if missing (preserve EC2 secrets)
+            if [ ! -f /home/ec2-user/matamu/matamu-backend/.env ] && [ -f /home/ec2-user/matamu-backend/.env ]; then
+              cp /home/ec2-user/matamu-backend/.env /home/ec2-user/matamu/matamu-backend/.env
+            fi
+            # ensure systemd points to new repo path
+            if grep -q "matamu-backend" /etc/systemd/system/matamu.service && ! grep -q "/home/ec2-user/matamu/matamu-backend" /etc/systemd/system/matamu.service; then
+              sudo sed -i 's|WorkingDirectory=/home/ec2-user/matamu-backend|WorkingDirectory=/home/ec2-user/matamu/matamu-backend|' /etc/systemd/system/matamu.service
+              sudo systemctl daemon-reload
+            fi
             cd /home/ec2-user/matamu
             echo "=== Installing deps (light) ==="
             source "$VENV_PATH/bin/activate"
@@ -53,6 +63,7 @@ jobs:
             USE_POSTGIS=1 python manage.py migrate --noinput
             echo "=== Restart matamu ==="
             sudo systemctl restart matamu
+            sleep 3
             echo "=== Check ==="
             curl -sf http://127.0.0.1:8080/api/ping | head -c 100; echo
             echo "=== Deployment Completed Successfully ==="
