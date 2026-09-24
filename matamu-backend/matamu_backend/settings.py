@@ -139,6 +139,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = []   # app static dirs auto-discovered via APP_DIRS=True
 
 # Evidence photos served locally in dev (S3 in prod via api/storage.py)
