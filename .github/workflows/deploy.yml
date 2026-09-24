@@ -58,9 +58,15 @@ jobs:
             echo "=== Installing deps (light) ==="
             source "$VENV_PATH/bin/activate"
             pip install -q Django==5.1 django-ninja==1.3.0 psycopg2-binary django-cors-headers python-dotenv gunicorn requests boto3 Pillow opencv-python==5.0.0.93
+            echo "=== Build PWA frontend ==="
+            cd matamu-frontend
+            npm install --silent 2>&1 | tail -5 || npm install 2>&1 | tail -10
+            npm run build 2>&1 | tail -10
+            cd ../matamu-backend
             echo "=== Migrate (PostGIS) ==="
-            cd matamu-backend
             USE_POSTGIS=1 python manage.py migrate --noinput
+            echo "=== Reload nginx (PWA) ==="
+            sudo nginx -s reload 2>&1 | head -5 || true
             echo "=== Restart matamu ==="
             sudo systemctl restart matamu
             sleep 3
