@@ -48,6 +48,95 @@ def ping(request):
     return {"message": "pong", "service": "matamu"}
 
 
+@api.get("/v1/system-health")
+def system_health(request):
+    """
+    System health metrics — CPU, memory, disk, database, services.
+    Used by PowerUp modal to show real-time app health.
+    """
+    import psutil
+    from django.db import connection
+    from django.conf import settings
+    
+    # CPU
+    cpu_percent = psutil.cpu_percent(interval=0.1)
+    cpu_count = psutil.cpu_count()
+    
+    # Memory
+    mem = psutil.virtual_memory()
+    mem_total_gb = mem.total / (1024**3)
+    mem_used_gb = mem.used / (1024**3)
+    mem_percent = mem.percent
+    
+    # Disk
+    disk = psutil.disk_usage('/')
+    disk_total_gb = disk.total / (1024**3)
+    disk_used_gb = disk.used / (1024**3)
+    disk_percent = disk.percent
+    
+    # Database
+    db_ok = False
+    db_latency_ms = None
+    try:
+        start = time.monotonic()
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        db_latency_ms = round((time.monotonic() - start) * 1000, 1)
+        db_ok = True
+    except:
+        pass
+    
+    # Observations count
+    obs_total = Observation.objects.count()
+    obs_published = Observation.objects.filter(status='published').count()
+    
+    # Service status (simple check: if this endpoint runs, Django is OK)
+    django_ok = True
+    
+    # LLM mock mode
+    llm_mock = not bool(os.getenv('LITELLM_BASE_URL'))
+    
+    # Storage mode
+    storage_mode = 'S3' if os.getenv('AWS_ACCESS_KEY_ID') else 'local'
+    
+    return {
+        "status": "healthy" if db_ok and cpu_percent < 90 and mem_percent < 90 and disk_percent < 85 else "degraded",
+        "timestamp": timezone.now().isoformat(),
+        "cpu": {
+            "percent": round(cpu_percent, 1),
+            "cores": cpu_count,
+            "status": "ok" if cpu_percent < 80 else "warning" if cpu_percent < 90 else "critical"
+        },
+        "memory": {
+            "total_gb": round(mem_total_gb, 2),
+            "used_gb": round(mem_used_gb, 2),
+            "percent": round(mem_percent, 1),
+            "status": "ok" if mem_percent < 75 else "warning" if mem_percent < 90 else "critical"
+        },
+        "disk": {
+            "total_gb": round(disk_total_gb, 2),
+            "used_gb": round(disk_used_gb, 2),
+            "percent": round(disk_percent, 1),
+            "status": "ok" if disk_percent < 70 else "warning" if disk_percent < 85 else "critical"
+        },
+        "database": {
+            "connected": db_ok,
+            "latency_ms": db_latency_ms,
+            "engine": settings.DATABASES['default']['ENGINE'].split('.')[-1],
+            "status": "ok" if db_ok and (db_latency_ms or 0) < 100 else "warning" if db_ok else "critical"
+        },
+        "services": {
+            "django": {"running": django_ok, "status": "ok"},
+            "llm": {"mode": "mock" if llm_mock else "live", "status": "ok"},
+            "storage": {"mode": storage_mode, "status": "ok"}
+        },
+        "observations": {
+            "total": obs_total,
+            "published": obs_published
+        }
+    }
+
+
 # ── Capture ─────────────────────────────────────────────────────────────────
 
 @api.post("/v1/capture")
