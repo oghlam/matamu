@@ -129,28 +129,33 @@
 
     <!-- PowerUp + reporter + logout -->
     <div class="mt-auto flex flex-col items-center gap-1">
-      <button id="powerup-btn" aria-label="Power Up" title="Power Up — provider keys"
-         class="group relative w-11 h-11 flex items-center justify-center rounded-lg text-ts hover:bg-accent/10 hover:text-accent transition-colors">
+      <button id="powerup-btn" type="button" aria-label="Power Up" title="Power Up — provider keys" onclick="window.__matamuOpenPowerUp&&window.__matamuOpenPowerUp()"
+         class="group relative w-11 h-11 flex items-center justify-center rounded-lg text-ts hover:bg-accent/10 hover:text-accent transition-colors cursor-pointer touch-manipulation">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
         </svg>
-        <span id="powerup-dot" class="hidden absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent ring-2 ring-surface"></span>
+        <span id="powerup-dot" class="hidden absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent ring-2 ring-surface pointer-events-none"></span>
         <span class="pointer-events-none absolute left-14 whitespace-nowrap bg-dark text-white text-xs font-medium px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 z-50">Power Up</span>
       </button>
-      <a href="{{ PWA_URL }}" target="_blank" rel="noopener" aria-label="Reporter"
+      <a href="{{ PWA_URL }}" target="_blank" rel="noopener" aria-label="Reporter — Warga PWA ({{ PWA_URL }})"
          class="group relative w-11 h-11 flex items-center justify-center rounded-lg text-ts hover:bg-s2 hover:text-tp transition-colors">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
           <path stroke-linecap="square" stroke-linejoin="miter" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
         </svg>
-        <span class="pointer-events-none absolute left-14 whitespace-nowrap bg-dark text-white text-xs font-medium px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 z-50">Reporter</span>
+        <span class="pointer-events-none absolute left-14 whitespace-nowrap bg-dark text-white text-xs font-medium px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 z-50">Reporter — Warga PWA</span>
       </a>
-      <a href="/admin/logout/" aria-label="Logout"
-         class="group relative w-11 h-11 flex items-center justify-center rounded-lg text-ts hover:bg-s2 hover:text-bad transition-colors">
-        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-          <path stroke-linecap="square" stroke-linejoin="miter" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-        </svg>
-        <span class="pointer-events-none absolute left-14 whitespace-nowrap bg-dark text-white text-xs font-medium px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 z-50">Logout</span>
-      </a>
+      <form method="post" action="{% url 'admin:logout' %}" class="w-11 h-11 m-0">
+        {% csrf_token %}
+        <button type="submit" aria-label="Logout — {{ request.user.username }}"
+           title="Logout — {{ request.user.username }}"
+           onclick="return confirm('Logout from dashboard?')"
+           class="group relative w-11 h-11 flex items-center justify-center rounded-lg text-ts hover:bg-bad/10 hover:text-bad transition-colors cursor-pointer">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+            <path stroke-linecap="square" stroke-linejoin="miter" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+          <span class="pointer-events-none absolute left-14 whitespace-nowrap bg-dark text-white text-xs font-medium px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 z-50">Logout ({{ request.user.username }})</span>
+        </button>
+      </form>
     </div>
   </nav>
 
@@ -185,7 +190,7 @@
   </div><!-- /shell -->
 
   <!-- PowerUp Modal — ROUND STATION · PROVIDER SETTINGS (like God’s Eye) -->
-  <div id="powerup-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div id="powerup-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
     <div id="powerup-backdrop" class="absolute inset-0 bg-dark/60 backdrop-blur-sm"></div>
     <div class="relative w-full max-w-[520px] max-h-[90vh] overflow-auto bg-surface rounded-2xl shadow-float border border-gray-100">
       <div class="sticky top-0 bg-surface/90 backdrop-blur px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
@@ -311,6 +316,7 @@
     
     let currentTab = 'providers';
     let healthData = null;
+    let healthInterval = null;
     
     function switchTab(tab){
       currentTab = tab;
@@ -405,9 +411,19 @@
     tabProviders && tabProviders.addEventListener('click', () => switchTab('providers'));
     tabHealth && tabHealth.addEventListener('click', () => switchTab('health'));
     healthRefreshBtn && healthRefreshBtn.addEventListener('click', fetchHealth);
-    
-    btn&&btn.addEventListener('click', open);
-    mobilePowerBtn&&mobilePowerBtn.addEventListener('click', open);
+
+    // expose globally for inline fallback + delegated handler (fixes mobile Overview where direct bind may be raced)
+    window.__matamuOpenPowerUp = open;
+    window.__matamuClosePowerUp = close;
+    try{ btn&&btn.addEventListener('click', function(e){ e.preventDefault(); open(); }); }catch{}
+    try{ mobilePowerBtn&&mobilePowerBtn.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); open(); }); }catch{}
+    // delegated fallback — catches clicks on inner SVG too and survives DOM reorder
+    document.addEventListener('click', function(e){
+      const t = e.target.closest && e.target.closest('#powerup-btn, #mobile-powerup-btn');
+      if(t){ e.preventDefault(); e.stopPropagation(); open(); }
+    });
+    // touch fallback for mobile
+    try{ mobilePowerBtn&&mobilePowerBtn.addEventListener('touchend', function(e){ e.preventDefault(); open(); }, {passive:false}); }catch{}
     closeBtn&&closeBtn.addEventListener('click', close);
     backdrop&&backdrop.addEventListener('click', close);
     document.addEventListener('keydown', e=>{ if(e.key==='Escape'&&!modal.classList.contains('hidden')) close() });
@@ -430,7 +446,7 @@
   </script>
 
   <!-- Mobile bottom nav — icon-only compact, 8 icons fit without labels -->
-  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-gray-100 flex items-center"
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-gray-100 flex items-center touch-manipulation"
        style="padding-bottom:env(safe-area-inset-bottom)">
     {% with page=page %}
     <a href="{% url 'dashboard:overview' %}" aria-label="Overview"
@@ -453,18 +469,23 @@
        class="flex-1 flex items-center justify-center py-3.5 {% if page == 'agentic' %}text-accent bg-accent/10{% else %}text-ts{% endif %}">
       <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
     </a>
-    <button id="mobile-powerup-btn" type="button" aria-label="Power Up"
-       class="flex-1 flex items-center justify-center py-3.5 text-ts relative">
+    <button id="mobile-powerup-btn" type="button" aria-label="Power Up" onclick="window.__matamuOpenPowerUp&&window.__matamuOpenPowerUp()"
+       class="flex-1 flex items-center justify-center py-3.5 text-ts relative cursor-pointer touch-manipulation select-none">
       <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-      <span id="mobile-powerup-dot" class="hidden absolute top-2 right-3 w-1.5 h-1.5 rounded-full bg-accent ring-2 ring-surface"></span>
+      <span id="mobile-powerup-dot" class="hidden absolute top-2 right-3 w-1.5 h-1.5 rounded-full bg-accent ring-2 ring-surface pointer-events-none"></span>
     </button>
-    <a href="{{ PWA_URL }}" target="_blank" rel="noopener" aria-label="Reporter"
+    <a href="{{ PWA_URL }}" target="_blank" rel="noopener" aria-label="Reporter — Warga PWA"
        class="flex-1 flex items-center justify-center py-3.5 text-ts">
       <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
     </a>
-    <a href="/admin/logout/" aria-label="Logout" class="flex-1 flex items-center justify-center py-3.5 text-ts">
-      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-    </a>
+    <form method="post" action="{% url 'admin:logout' %}" class="flex-1 flex m-0">
+      {% csrf_token %}
+      <button type="submit" aria-label="Logout — {{ request.user.username }}" title="Logout"
+         onclick="return confirm('Logout from dashboard?')"
+         class="flex-1 flex items-center justify-center py-3.5 text-bad/70 hover:text-bad hover:bg-bad/5 cursor-pointer touch-manipulation">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      </button>
+    </form>
     {% endwith %}
   </nav>
 

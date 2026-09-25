@@ -4,14 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/icon-180-apple-touch.png" />
-    <link rel="preload" as="image" href="/icon-192.png" />
+    <link rel="preload" as="image" href="/icon-192.png" fetchpriority="high" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#9FC2C5" />
     <meta name="description" content="Report road damage around you" />
     <title>Mat(a)Mu</title>
     <style>
-      /* Real preload — visible before React, removed after mount (not cosmetic) */
-      #preload{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#F8F8F3;color:#111311;font-family:'JetBrains Mono',monospace;transition:opacity .35s ease;text-align:center}
+      /* Real preload — single atomic paint, no FOIT (font fallback renders instantly) */
+      #preload{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#F8F8F3;color:#111311;font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;transition:opacity .35s ease;text-align:center;contain:layout style}
       #preload.out{opacity:0;pointer-events:none}
       #preload img{width:96px;height:96px;animation:preload-pulse 1.6s ease-in-out infinite}
       @keyframes preload-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.04);opacity:.9}}
@@ -25,11 +28,12 @@
   </head>
   <body>
     <div id="preload" aria-hidden="false">
-      <img src="/icon-192.png" alt="Mat(a)Mu" width="96" height="96" decoding="async" />
+      <img src="/icon-192.png" alt="Mat(a)Mu" width="96" height="96" decoding="async" fetchpriority="high" />
       <h1>Mat<span>(a)</span>Mu</h1>
       <p class="sub">People's eyes for safer roads</p>
       <div class="bar" aria-hidden="true"><i></i></div>
     </div>
+    <script>/* inline guard: standalone PWA already showed native splash → remove custom instantly after fonts */(function(){try{if(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches){var m=window.matchMedia('(display-mode: standalone)');if(m.matches)document.documentElement.classList.add('is-standalone')} }catch(e){}})();</script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
