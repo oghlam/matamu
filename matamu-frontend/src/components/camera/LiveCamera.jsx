@@ -74,19 +74,27 @@ export default function LiveCamera({ onCapture, onCancel }) {
     )
   }
 
+  // double-tap anywhere on viewfinder to capture (in addition to shutter button)
+  const lastTapRef = useRef(0)
+  function handleViewfinderTap() {
+    const now = Date.now()
+    if (now - lastTapRef.current < 300) takePhoto()
+    lastTapRef.current = now
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-dark relative">
-      {/* Viewfinder */}
-      <div className="flex-1 relative overflow-hidden min-h-0">
+      {/* Viewfinder — double tap to capture */}
+      <div className="flex-1 relative overflow-hidden min-h-0" onDoubleClick={takePhoto} onTouchEnd={handleViewfinderTap}>
         <video
           ref={videoRef}
           playsInline
           muted
           className="absolute inset-0 w-full h-full object-cover"
         />
-        {/* Scanline */}
-        <div className="absolute inset-x-0 top-0 h-16 pointer-events-none overflow-hidden">
-          <div className="scanline w-full h-8 bg-gradient-to-b from-transparent via-accent/40 to-transparent" />
+        {/* Scanline — full height sweep */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="scanline w-full h-12 bg-gradient-to-b from-transparent via-accent/40 to-transparent" />
         </div>
         {/* Viewfinder: circle + crosshair */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -113,16 +121,16 @@ export default function LiveCamera({ onCapture, onCancel }) {
         </button>
       </div>
 
-      {/* Shutter bar */}
-      <div className="shrink-0 flex items-center justify-center gap-6 py-5 bg-dark">
+      {/* Shutter bar — lifted above BottomNav, fully visible (double tap anywhere on viewfinder also captures) */}
+      <div className="shrink-0 flex items-center justify-center gap-6 pt-5 pb-24 md:pb-5 bg-dark">
         <span className="text-[11px] text-white/60 w-16 text-right">
-          {ready ? 'Ready' : 'Starting…'}
+          {ready ? 'Ready • double tap to capture' : 'Starting…'}
         </span>
         <button
           onClick={takePhoto}
           disabled={!ready}
           aria-label="Take photo"
-          className="w-[72px] h-[72px] rounded-full border-4 border-white/90 bg-white/10 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
+          className="w-[72px] h-[72px] rounded-full border-4 border-white/90 bg-white/10 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40 shrink-0"
         >
           <span className="w-14 h-14 rounded-full bg-accent flex items-center justify-center text-dark">
             <Camera size={26} />

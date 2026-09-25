@@ -143,6 +143,7 @@ def system_health(request):
 def capture(request, lat: float, lng: float,
             gps_accuracy: Optional[float] = None,
             id_token: Optional[str] = None,
+            note: Optional[str] = None,
             file: UploadedFile = File(...)):
     """
     Full pipeline: auth → upload → CV → SFace blur → S3 → Bedrock → Agentic → DB.
@@ -249,7 +250,8 @@ def capture(request, lat: float, lng: float,
             status = "pending_verification"
             review_reason = (review_reason + " " + exif_flag).strip()
 
-        # 9. Persist
+        # 9. Persist (note = free text small note)
+        safe_note = (note or "").strip()[:500]
         obs = Observation.objects.create(
             lat=lat, lng=lng,
             gps_accuracy=gps_accuracy,
@@ -269,12 +271,13 @@ def capture(request, lat: float, lng: float,
             reporter_email=reporter_email,
             reporter_name=reporter_name,
             review_reason=review_reason if status == "pending_verification" else "",
+            note=safe_note,
         )
 
         if nearby_count >= 3:
             FollowUp.objects.create(observation=obs, status="recurring_flagged")
 
-        logger.info("capture OK obs=%s class=%s trust=%.2f status=%s reporter=%s", obs.id, detected_class, cv_result["trust"], status, reporter_email)
+        logger.info("capture OK obs=%s class=%s trust=%.2f status=%s reporter=%s note=%s", obs.id, detected_class, cv_result["trust"], status, reporter_email, bool(safe_note))
         return {
             "id": obs.id,
             "status": obs.status,
@@ -290,6 +293,7 @@ def capture(request, lat: float, lng: float,
             "lng": lng,
             "faces_blurred": faces_blurred,
             "evidence_url": evidence_url,
+            "note": safe_note,
             "typesafe": {
                 "used": ts_result.get("typesafe_used", False),
                 "severity": ts_result.get("severity", {}),
@@ -415,6 +419,7 @@ def _obs_dict(o, detail=False):
         "evidence_url": o.evidence_url,
         "review_reason": getattr(o, "review_reason", ""),
         "reporter_name": getattr(o, "reporter_name", ""),
+        "note": getattr(o, "note", ""),
         "created_at": o.created_at,
     }
     if detail:

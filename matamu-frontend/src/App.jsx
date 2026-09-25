@@ -4,6 +4,7 @@ import PublicMap from './pages/warga/PublicMap'
 import Capture from './pages/warga/Capture'
 import MyReports from './pages/warga/MyReports'
 import ReportDetail from './pages/warga/ReportDetail'
+import Help from './pages/warga/Help'
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route path="/capture" element={<Capture />} />
         <Route path="/my-reports" element={<MyReports />} />
         <Route path="/r/:id" element={<ReportDetail />} />
+        <Route path="/help" element={<Help />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

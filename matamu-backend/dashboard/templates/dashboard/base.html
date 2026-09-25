@@ -69,7 +69,7 @@
 {# App background (muted teal frame) + application shell (rounded workspace) — DESIGN-UI §4 #}
 <body class="bg-app min-h-screen md:p-4 flex">
 
-  <div class="flex w-full bg-surface md:rounded-shell overflow-hidden shadow-float md:h-[calc(100vh-2rem)] min-h-screen md:min-h-0">
+  <div class="flex w-full bg-surface md:rounded-shell md:overflow-hidden shadow-float md:h-[calc(100vh-2rem)] min-h-screen md:min-h-0 overflow-visible">
 
   <!-- ── Left nav rail (desktop, inside shell) ── -->
   <nav class="hidden md:flex flex-col items-center gap-1 w-[76px] shrink-0 py-5 border-r border-gray-100">
@@ -169,7 +169,7 @@
     {% endif %}
 
     <!-- Page content -->
-    <main class="flex-1 min-h-0 {% if page == 'overview' %}relative overflow-y-auto md:overflow-hidden{% else %}overflow-y-auto p-5 space-y-5{% endif %}">
+    <main class="flex-1 min-h-0 {% if page == 'overview' %}relative overflow-visible md:overflow-hidden{% else %}overflow-y-auto p-5 space-y-5 pb-20 md:pb-5{% endif %}">
       {% if messages %}
         {% for msg in messages %}
         <div class="px-4 py-2.5 rounded-lg text-sm font-medium
@@ -275,6 +275,8 @@
     const backdrop=document.getElementById('powerup-backdrop');
     const closeBtn=document.getElementById('powerup-close');
     const dot=document.getElementById('powerup-dot');
+    const mobileDot=document.getElementById('mobile-powerup-dot');
+    const mobilePowerBtn=document.getElementById('mobile-powerup-btn');
     const tomInput=document.getElementById('powerup-tomtom'), tomSave=document.getElementById('powerup-save-tomtom'), tomRemove=document.getElementById('powerup-remove-tomtom'), tomStatus=document.getElementById('powerup-status-tomtom');
     const ionInput=document.getElementById('powerup-cesium'), ionSave=document.getElementById('powerup-save-cesium'), ionRemove=document.getElementById('powerup-remove-cesium'), ionStatus=document.getElementById('powerup-status-cesium');
     function refreshOne(input, statusEl, removeBtn, key, label){
@@ -289,6 +291,7 @@
       refreshOne(ionInput, ionStatus, ionRemove, LS_ION, 'CESIUM_ION_TOKEN');
       const hasAny=!!(localStorage.getItem(LS_TOM)||localStorage.getItem(LS_ION)||'').trim();
       if(dot) dot.classList.toggle('hidden', hasAny);
+      if(mobileDot) mobileDot.classList.toggle('hidden', hasAny);
     }
     function open(){ modal.classList.remove('hidden'); refresh(); setTimeout(()=>tomInput.focus(),80) }
     function close(){ modal.classList.add('hidden') }
@@ -404,6 +407,7 @@
     healthRefreshBtn && healthRefreshBtn.addEventListener('click', fetchHealth);
     
     btn&&btn.addEventListener('click', open);
+    mobilePowerBtn&&mobilePowerBtn.addEventListener('click', open);
     closeBtn&&closeBtn.addEventListener('click', close);
     backdrop&&backdrop.addEventListener('click', close);
     document.addEventListener('keydown', e=>{ if(e.key==='Escape'&&!modal.classList.contains('hidden')) close() });
@@ -425,44 +429,41 @@
   })();
   </script>
 
-  <!-- Mobile bottom nav -->
-  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-gray-100 flex"
+  <!-- Mobile bottom nav — icon-only compact, 8 icons fit without labels -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-gray-100 flex items-center"
        style="padding-bottom:env(safe-area-inset-bottom)">
     {% with page=page %}
-    <a href="{% url 'dashboard:overview' %}"
-       class="flex-1 flex flex-col items-center py-2.5 gap-0.5 text-xs font-medium {% if page == 'overview' %}text-accent{% else %}text-ts{% endif %}">
-      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="{% if page == 'overview' %}2{% else %}1.75{% endif %}" viewBox="0 0 24 24">
-        <path stroke-linecap="square" stroke-linejoin="miter" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-      </svg>
-      <span>Overview</span>
+    <a href="{% url 'dashboard:overview' %}" aria-label="Overview"
+       class="flex-1 flex items-center justify-center py-3.5 {% if page == 'overview' %}text-accent bg-accent/10{% else %}text-ts{% endif %}">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="{% if page == 'overview' %}2{% else %}1.75{% endif %}" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
     </a>
-    <a href="{% url 'dashboard:observations' %}"
-       class="flex-1 flex flex-col items-center py-2.5 gap-0.5 text-xs font-medium {% if page == 'observations' %}text-accent{% else %}text-ts{% endif %}">
-      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-        <path stroke-linecap="square" stroke-linejoin="miter" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-      </svg>
-      <span>Reports</span>
+    <a href="{% url 'dashboard:observations' %}" aria-label="Reports"
+       class="flex-1 flex items-center justify-center py-3.5 {% if page == 'observations' %}text-accent bg-accent/10{% else %}text-ts{% endif %}">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
     </a>
-    <a href="{% url 'dashboard:iqe' %}"
-       class="flex-1 flex flex-col items-center py-2.5 gap-0.5 text-xs font-medium {% if page == 'iqe' %}text-accent{% else %}text-ts{% endif %}">
-      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-        <path stroke-linecap="square" stroke-linejoin="miter" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-      </svg>
-      <span>IQE</span>
+    <a href="{% url 'dashboard:iqe' %}" aria-label="IQE Queue"
+       class="flex-1 flex items-center justify-center py-3.5 {% if page == 'iqe' %}text-accent bg-accent/10{% else %}text-ts{% endif %}">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
     </a>
-    <a href="{% url 'dashboard:followup' %}"
-       class="flex-1 flex flex-col items-center py-2.5 gap-0.5 text-xs font-medium {% if page == 'followup' %}text-accent{% else %}text-ts{% endif %}">
-      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-        <path stroke-linecap="square" stroke-linejoin="miter" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
-      </svg>
-      <span>Follow-up</span>
+    <a href="{% url 'dashboard:followup' %}" aria-label="Follow-up"
+       class="flex-1 flex items-center justify-center py-3.5 {% if page == 'followup' %}text-accent bg-accent/10{% else %}text-ts{% endif %}">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
     </a>
-    <a href="{% url 'dashboard:agentic' %}"
-       class="flex-1 flex flex-col items-center py-2.5 gap-0.5 text-xs font-medium {% if page == 'agentic' %}text-accent{% else %}text-ts{% endif %}">
-      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-        <path stroke-linecap="square" stroke-linejoin="miter" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
-      </svg>
-      <span>Agentic</span>
+    <a href="{% url 'dashboard:agentic' %}" aria-label="Agentic"
+       class="flex-1 flex items-center justify-center py-3.5 {% if page == 'agentic' %}text-accent bg-accent/10{% else %}text-ts{% endif %}">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+    </a>
+    <button id="mobile-powerup-btn" type="button" aria-label="Power Up"
+       class="flex-1 flex items-center justify-center py-3.5 text-ts relative">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      <span id="mobile-powerup-dot" class="hidden absolute top-2 right-3 w-1.5 h-1.5 rounded-full bg-accent ring-2 ring-surface"></span>
+    </button>
+    <a href="{{ PWA_URL }}" target="_blank" rel="noopener" aria-label="Reporter"
+       class="flex-1 flex items-center justify-center py-3.5 text-ts">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+    </a>
+    <a href="/admin/logout/" aria-label="Logout" class="flex-1 flex items-center justify-center py-3.5 text-ts">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
     </a>
     {% endwith %}
   </nav>

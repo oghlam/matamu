@@ -17,8 +17,6 @@
   }
   #dash-header { transition: transform .28s ease, opacity .2s ease; }
   #dash-header.collapsed { transform: translateY(-110%); opacity: 0; pointer-events: none; }
-  #dash-kpi { transition: top .28s ease, opacity .2s ease; }
-  #dash-kpi.collapsed { top: 14px !important; }
   /* Overview preload — real, covers map until style + data ready */
   #dash-preload{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#F8F8F3}
   #dash-preload.out{opacity:0;pointer-events:none;transition:opacity .35s ease}
@@ -42,23 +40,23 @@
 
 {# ── CANVAS-FIRST WORKSPACE (DESIGN-UI §4, §11; ref: dash-ui.webp) ── #}
 {# Mobile: vertical flow (map → KPI → cards). Desktop: map fills shell, controls float. #}
-<div class="min-h-full flex flex-col md:block md:h-full gap-3 p-3 md:p-0">
+<div class="relative min-h-full flex flex-col md:block md:h-full gap-3 p-3 pb-24 md:p-0 md:pb-0">
 
   <!-- ═══ MAP CANVAS — the application (§14: workspace is the app) ═══ -->
-  <div id="map" class="relative h-[44vh] shrink-0 rounded-xl overflow-hidden md:rounded-none md:absolute md:inset-0 md:h-auto"></div>
+  <div id="map" class="relative h-[44vh] shrink-0 rounded-xl overflow-hidden md:rounded-none md:absolute md:inset-0 md:h-auto order-1 md:order-none"></div>
   <!-- Traffic status chip — God’s Eye style -->
   <div id="traffic-dash-status" class="hidden md:flex absolute top-[108px] right-4 z-10 pointer-events-none"></div>
 
-  <!-- ═══ COLLAPSE TOGGLE — header ^/v (luaskan peta) ═══ -->
+  <!-- ═══ COLLAPSE TOGGLE — clip di tepi panel (kecil compact) ═══ -->
   <button id="dash-header-toggle" aria-label="Toggle header" title="Hide header"
-          class="hidden md:flex absolute top-2 left-1/2 -translate-x-1/2 z-20 w-7 h-7 rounded-full bg-dark text-white items-center justify-center shadow-float hover:bg-dark/90">
-    <svg id="dash-toggle-icon" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 15l6-6 6 6"/></svg>
+           class="hidden md:flex absolute top-2 left-1/2 -translate-x-1/2 z-30 w-6 h-6 rounded-full bg-dark text-white items-center justify-center shadow-float hover:bg-dark/90 border border-white/10 transition-all duration-300 ease-out">
+    <svg id="dash-toggle-icon" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 15l6-6 6 6"/></svg>
   </button>
 
-  <!-- ═══ FLOATING CONTROL BAR — Search | Filter | Filter (§12) ═══ -->
-  <div id="dash-header" class="md:absolute md:top-4 md:left-4 md:right-4 z-10
-              bg-surface/90 backdrop-blur rounded-xl shadow-float px-3 py-2
-              flex flex-wrap items-center gap-2">
+  <!-- ═══ FLOATING CONTROL BAR — Search | Filter | Filter + KPI compact — diperkecil ═══ -->
+  <div id="dash-header" class="order-4 md:order-none md:absolute md:top-4 md:left-4 md:right-4 z-20
+              bg-surface/90 backdrop-blur rounded-xl shadow-float px-2.5 py-2
+              flex flex-wrap items-center gap-1.5">
     <div class="relative flex-1 min-w-[140px]">
       <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 text-tm" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -83,23 +81,20 @@
     </select>
     <span id="f-count" class="text-xs font-bold whitespace-nowrap bg-dark text-white px-2.5 py-1 rounded-full"></span>
     <a id="list-link" href="{% url 'dashboard:observations' %}" class="text-xs font-bold whitespace-nowrap bg-accent text-dark px-3 py-1.5 rounded-lg hover:bg-accent/90 shadow-sm">List →</a>
-  </div>
-
-  <!-- ═══ FLOATING KPI PILLS — dark, semantic accent only (§8, §10D) ═══ -->
-  {# Mobile: 3-column grid fits fully. Desktop: centered floating row. #}
-  <div id="dash-kpi" class="md:absolute md:top-[76px] md:left-1/2 md:-translate-x-1/2 z-10
-              grid grid-cols-3 md:flex gap-2 md:max-w-[90%] px-0.5 py-0.5">
-    <div class="flex flex-col md:flex-row items-center md:items-baseline gap-0.5 md:gap-2 bg-dark text-white rounded-xl px-2 md:px-4 py-2 shadow-float md:shrink-0 text-center md:text-left">
-      <span class="text-lg md:text-xl font-bold text-accent leading-none">{{ stats.total }}</span>
-      <span class="text-[10px] md:text-[11px] text-white/70 whitespace-nowrap">Total Reports</span>
-    </div>
-    <div class="flex flex-col md:flex-row items-center md:items-baseline gap-0.5 md:gap-2 bg-dark text-white rounded-xl px-2 md:px-4 py-2 shadow-float md:shrink-0 text-center md:text-left">
-      <span class="text-lg md:text-xl font-bold text-white leading-none">{{ stats.avg_trust }}</span>
-      <span class="text-[10px] md:text-[11px] text-white/70 whitespace-nowrap">Avg Trust</span>
-    </div>
-    <div class="flex flex-col md:flex-row items-center md:items-baseline gap-0.5 md:gap-2 bg-dark text-white rounded-xl px-2 md:px-4 py-2 shadow-float md:shrink-0 text-center md:text-left">
-      <span class="text-lg md:text-xl font-bold text-warn leading-none">{{ stats.pending_verification }}</span>
-      <span class="text-[10px] md:text-[11px] text-white/70 whitespace-nowrap">Needs Review</span>
+    <!-- KPI compact sebaris — diperkecil -->
+    <div class="w-full md:w-auto flex items-center gap-1 md:ml-2 md:pl-2.5 md:border-l md:border-gray-200 pt-1.5 md:pt-0 border-t md:border-t-0 border-gray-100">
+      <div class="flex-1 md:flex-none flex items-center gap-1 bg-dark rounded-md px-2 py-1 justify-center">
+        <span class="text-xs font-bold text-accent leading-none">{{ stats.total }}</span>
+        <span class="text-[10px] text-white/70 leading-none whitespace-nowrap">Reports</span>
+      </div>
+      <div class="flex-1 md:flex-none flex items-center gap-1 bg-dark rounded-md px-2 py-1 justify-center">
+        <span class="text-xs font-bold text-white leading-none">{{ stats.avg_trust }}</span>
+        <span class="text-[10px] text-white/70 leading-none whitespace-nowrap">Trust</span>
+      </div>
+      <div class="flex-1 md:flex-none flex items-center gap-1 bg-dark rounded-md px-2 py-1 justify-center">
+        <span class="text-xs font-bold text-warn leading-none">{{ stats.pending_verification }}</span>
+        <span class="text-[10px] text-white/70 leading-none whitespace-nowrap">Review</span>
+      </div>
     </div>
   </div>
 
@@ -117,8 +112,8 @@
   </div>
 
   <!-- ═══ BOTTOM CONTEXTUAL CARDS (§10D, §15, §16) ═══ -->
-  <div class="md:absolute md:bottom-4 md:left-4 md:right-[240px] z-10
-              grid grid-cols-1 md:grid-cols-[1fr_300px] gap-3 pb-16 md:pb-0">
+  <div class="order-3 md:order-none md:absolute md:bottom-4 md:left-4 md:right-[240px] z-10
+              grid grid-cols-1 md:grid-cols-[1fr_300px] gap-3">
 
     <!-- A. Location detail — updates when a marker is clicked -->
     <div class="bg-surface rounded-xl shadow-float p-4">
@@ -201,10 +196,10 @@
 
   </div>
 
-  <!-- C. Severity insight — same height as Location/Evidence cards, compact so traffic controls not stacked -->
-  <div class="bg-surface rounded-xl shadow-float p-3 z-10
+  <!-- C. Severity insight — responsive: full-width on mobile, floating on desktop -->
+  <div class="order-5 md:order-none bg-surface rounded-xl shadow-float p-3 z-10 w-full md:w-[208px] shrink-0
               flex flex-row items-center gap-3
-              md:absolute md:right-4 md:bottom-4 md:w-[208px] md:flex-row md:items-center md:h-[168px]">
+              md:absolute md:right-4 md:bottom-4 md:flex-row md:items-center md:h-[168px]">
     <div class="relative w-[72px] h-[72px] shrink-0">
       <div class="absolute inset-0 rounded-full"
            style="background:conic-gradient(#D96868 0 {{ arc_high }}%, #E8A629 {{ arc_high }}% {{ arc_mid_end }}%, #67B57A {{ arc_mid_end }}% 100%)"></div>
@@ -732,9 +727,34 @@ function _drawRoute() {
   });
   }
 
-// Header collapse — ^ to hide, v to show (expand map)
-const _hdr=document.getElementById('dash-header'), _kpi=document.getElementById('dash-kpi'), _tgl=document.getElementById('dash-header-toggle'), _tglIcon=document.getElementById('dash-toggle-icon')
-if(_hdr&&_tgl){ let collapsed=false; _tgl.onclick=()=>{ collapsed=!collapsed; _hdr.classList.toggle('collapsed',collapsed); if(_kpi) _kpi.classList.toggle('collapsed',collapsed); _tglIcon.innerHTML=collapsed?`<path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/>`:`<path stroke-linecap="round" stroke-linejoin="round" d="M6 15l6-6 6 6"/>`; _tgl.title=collapsed?'Show header':'Hide header'; _tgl.setAttribute('aria-label',collapsed?'Show header':'Hide header'); map.resize() } }
+// Header collapse — clip di tepi panel (v saat terbuka menyatu, ^ saat tertutup di atas)
+const _hdr=document.getElementById('dash-header'), _tgl=document.getElementById('dash-header-toggle'), _tglIcon=document.getElementById('dash-toggle-icon')
+if(_hdr&&_tgl){
+  let collapsed=false;
+  function positionToggle(){
+    if(collapsed){ _tgl.style.top='8px'; }
+    else {
+      // clip di bottom edge panel — overlap 12px (setengah tinggi tombol 24)
+      const h=_hdr.offsetHeight, top=_hdr.offsetTop;
+      _tgl.style.top=(top + h - 12)+'px';
+    }
+  }
+  _tgl.onclick=()=>{
+    collapsed=!collapsed;
+    _hdr.classList.toggle('collapsed',collapsed);
+    _tglIcon.innerHTML=collapsed?`<path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/>`:`<path stroke-linecap="round" stroke-linejoin="round" d="M6 15l6-6 6 6"/>`;
+    _tgl.title=collapsed?'Show header':'Hide header';
+    _tgl.setAttribute('aria-label',collapsed?'Show header':'Hide header');
+    positionToggle();
+    map.resize();
+  };
+  // init + keep clipped on resize / font load
+  positionToggle();
+  window.addEventListener('resize', positionToggle);
+  // after map load & header rendered, re-position (header height may change with KPI wrap)
+  setTimeout(positionToggle, 300);
+  if(window.ResizeObserver) new ResizeObserver(positionToggle).observe(_hdr);
+}
 
 // Re-draw route/coverage when style swapped (satellite ↔ light) — also re-add 3D layers if active
 map.on('style.load', () => {

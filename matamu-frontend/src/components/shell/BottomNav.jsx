@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { Map, Camera, FileText } from 'lucide-react'
+import { Map, Camera, FileText, CircleHelp } from 'lucide-react'
 
 const links = [
   { to: '/', icon: Map, label: 'Map', end: true },
   { to: '/capture', icon: Camera, label: 'Report' },
   { to: '/my-reports', icon: FileText, label: 'Mine' },
+  { to: '/help', icon: CircleHelp, label: 'Help' },
 ]
 
 export default function BottomNav() {

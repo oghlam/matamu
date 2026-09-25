@@ -23,11 +23,12 @@ body {
   flex-direction: column;
 }
 
-/* Viewfinder scanline sweep */
+/* Viewfinder scanline sweep — full camera live */
 @keyframes scan-sweep {
   0%   { transform: translateY(-100%); }
-  100% { transform: translateY(60vh); }
+  100% { transform: translateY(100vh); }
 }
 .scanline {
   animation: scan-sweep 2.8s linear infinite;
+  will-change: transform;
 }

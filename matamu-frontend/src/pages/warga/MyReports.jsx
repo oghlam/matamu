@@ -16,6 +16,14 @@ const STATUS_LABELS = {
   resolved: 'Resolved',
 }
 
+function haversineKm(aLat, aLng, bLat, bLng) {
+  const R = 6371
+  const dLa = ((bLat - aLat) * Math.PI) / 180
+  const dLo = ((bLng - aLng) * Math.PI) / 180
+  const s = Math.sin(dLa / 2) ** 2 + Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLo / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(s))
+}
+
 export default function MyReports() {
   const [session, setSession] = useState(() => getSession())
   const [loginError, setLoginError] = useState(null)
@@ -47,6 +55,8 @@ export default function MyReports() {
     session ? { id_token: session.id_token } : {},
     { skip: !session }
   )
+  // All published for cluster count (multiplexer — viral = priority)
+  const { data: allPublished } = useObservations({ status: 'published' })
 
   if (!session) {
     return (
@@ -99,20 +109,31 @@ export default function MyReports() {
             description="Photograph road damage around you and submit a report."
           />
         ) : (
-          data.map(obs => (
-            <ReportCard key={obs.id} obs={obs} />
-          ))
+          data.map(obs => {
+            // cluster count: same class within 50m among all published (multiplexer viral)
+            const cluster = (allPublished || []).filter(v => (v.damage_class ?? v.class) === (obs.damage_class ?? obs.class) && v.lat != null && obs.lat != null && haversineKm(obs.lat, obs.lng, v.lat, v.lng) <= 0.05)
+            const count = cluster.length || 1
+            const topTrust = cluster.length ? Math.max(...cluster.map(v => v.trust_score ?? 0)) : (obs.trust_score ?? 0)
+            const first = cluster.length ? cluster.reduce((min, v) => {
+              const t = v.timestamp ?? v.created_at
+              if (!t) return min
+              return !min || new Date(t) < new Date(min) ? t : min
+            }, null) : (obs.timestamp ?? obs.created_at)
+            return <ReportCard key={obs.id} obs={obs} clusterCount={count} topTrust={topTrust} firstTime={first} />
+          })
         )}
       </div>
     </div>
   )
 }
 
-function ReportCard({ obs }) {
+function ReportCard({ obs, clusterCount = 1, topTrust, firstTime }) {
   const date = obs.timestamp
     ? new Date(obs.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     : '—'
+  const firstLabel = firstTime ? new Date(firstTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : date
   const isPending = obs.status === 'pending_verification' || obs.status === 'pending'
+  const isViral = clusterCount >= 3
   // mock:// URLs (old dev data) are not loadable — show placeholder instead
   const hasPhoto = !!obs.evidence_url && !obs.evidence_url.startsWith('mock://')
 
@@ -151,6 +172,19 @@ function ReportCard({ obs }) {
           {obs.severity && <span>· {obs.severity}</span>}
           {' '}· Trust {Math.round((obs.trust_score ?? 0) * 100)}
         </p>
+
+        {/* Cluster multiplexer — viral = priority */}
+        <p className={`text-[11px] rounded-lg px-2.5 py-1 break-words flex items-center gap-1.5 ${isViral ? 'bg-accent/15 text-accent font-semibold' : 'bg-surface-2 text-text-secondary'}`}>
+          <span>{clusterCount}× reported at this spot</span>
+          <span>· top trust {Math.round((topTrust ?? obs.trust_score ?? 0) * 100)}</span>
+          <span>· first {firstLabel}</span>
+          {isViral && <span className="ml-auto text-[10px] bg-accent text-dark px-1.5 py-0.5 rounded-full">🔥 Viral</span>}
+        </p>
+        {obs.note && (
+          <p className="text-[11px] text-text-primary bg-accent/10 border-l-2 border-accent rounded px-2.5 py-1.5 break-words italic">
+            Note: {obs.note}
+          </p>
+        )}
 
         {/* Pending reason — kenapa masuk IQE */}
         {isPending && obs.review_reason && (

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { Layers, LocateFixed, SlidersHorizontal, Flame, Camera, Box, Mountain, Car, Loader2, Zap, Globe } from 'lucide-react'
+import { Layers, LocateFixed, SlidersHorizontal, Flame, Camera, Box, Mountain, Car, Loader2, Globe } from 'lucide-react'
 import { useObservations } from '../../hooks/useObservations'
 import { useGps } from '../../hooks/useGps'
 import GpsBanner from '../../components/ui/GpsBanner'
@@ -167,6 +167,7 @@ export default function PublicMap() {
   const mapRef = useRef(null)
   const [heatmap, setHeatmap] = useState(false)
   const [classFilter, setClassFilter] = useState('')
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM)
   const [is3D, setIs3D] = useState(() => {
     try { return localStorage.getItem('matamu-3d') === '1' } catch { return false }
   })
@@ -179,9 +180,8 @@ export default function PublicMap() {
   const [trafficLoading, setTrafficLoading] = useState(false)
   const [trafficMeta, setTrafficMeta] = useState(null) // { roads, dots, source } — like God’s Eye getStats
   const [trafficError, setTrafficError] = useState(null)
-  const [showPowerUp, setShowPowerUp] = useState(false)
-  const [powerKey, setPowerKey] = useState(() => { try { return localStorage.getItem('matamu-tomtom-key') || import.meta.env.VITE_TOMTOM_API_KEY || '' } catch { return import.meta.env.VITE_TOMTOM_API_KEY || '' } })
-  const [ionKey, setIonKey] = useState(() => { try { return localStorage.getItem('matamu-cesium-ion-token') || import.meta.env.VITE_CESIUM_ION_TOKEN || '' } catch { return import.meta.env.VITE_CESIUM_ION_TOKEN || '' } })
+  const [powerKey] = useState(() => { try { return localStorage.getItem('matamu-tomtom-key') || import.meta.env.VITE_TOMTOM_API_KEY || '' } catch { return import.meta.env.VITE_TOMTOM_API_KEY || '' } })
+  const [ionKey] = useState(() => { try { return localStorage.getItem('matamu-cesium-ion-token') || import.meta.env.VITE_CESIUM_ION_TOKEN || '' } catch { return import.meta.env.VITE_CESIUM_ION_TOKEN || '' } })
   const [baseMode, setBaseMode] = useState('light') // light | sat | ion
   const trafficRafRef = useRef(null)
   const trafficDotsRef = useRef([])
@@ -220,6 +220,10 @@ export default function PublicMap() {
     // enable free pitch/rotate with right-drag + ctrl
     mapRef.current.dragRotate.enable()
     mapRef.current.touchPitch.enable()
+    const updateZoom = () => setZoom(mapRef.current?.getZoom() ?? DEFAULT_ZOOM)
+    mapRef.current.on('moveend', updateZoom)
+    mapRef.current.on('zoomend', updateZoom)
+    mapRef.current.on('load', updateZoom)
     // if persisted 3D, apply terrain after load
     if (start3D) {
       const applyPersisted = () => {
@@ -471,16 +475,51 @@ export default function PublicMap() {
     if (map.getLayer?.('heatmap-layer')) map.removeLayer('heatmap-layer')
     if (map.getSource?.('heatmap-src')) map.removeSource('heatmap-src')
 
-    const valid = observations.filter(o => o.lat != null && o.lng != null)
+    const valid = observations.filter(o => o.lat != null && o.lng != null && o.status !== 'resolved')
+
+    // Cluster: ST_DWithin 50m at low zoom (<14) — DBSCAN-like, merge pins, resolved already filtered
+    function getClusters(list, zoomLvl) {
+      if (zoomLvl >= 14) return list.map(o => ({ ...o, _clusterCount: 1, _avgTrust: o.trust_score ?? 0, _maxTrust: o.trust_score ?? 0, _members: [o], _lat: o.lat, _lng: o.lng, _firstTime: o.timestamp ?? o.created_at }))
+      const radius = zoomLvl < 12 ? 0.1 : 0.05
+      const clusters = []
+      const used = new Set()
+      for (let i = 0; i < list.length; i++) {
+        if (used.has(i)) continue
+        const a = list[i]
+        const members = [a]
+        used.add(i)
+        for (let j = i + 1; j < list.length; j++) {
+          if (used.has(j)) continue
+          const b = list[j]
+          if (haversineKm(a.lat, a.lng, b.lat, b.lng) <= radius) {
+            members.push(b)
+            used.add(j)
+          }
+        }
+        const avgTrust = members.reduce((s, v) => s + (v.trust_score ?? 0), 0) / members.length
+        const maxTrust = Math.max(...members.map(v => v.trust_score ?? 0))
+        const firstTime = members.reduce((min, v) => {
+          const t = v.timestamp ?? v.created_at
+          if (!t) return min
+          return !min || new Date(t) < new Date(min) ? t : min
+        }, null)
+        const centerLat = members.reduce((s, v) => s + v.lat, 0) / members.length
+        const centerLng = members.reduce((s, v) => s + v.lng, 0) / members.length
+        const rep = members.reduce((best, cur) => (cur.trust_score ?? 0) > (best.trust_score ?? 0) ? cur : best, members[0])
+        clusters.push({ ...rep, _clusterCount: members.length, _avgTrust: avgTrust, _maxTrust: maxTrust, _firstTime: firstTime, _members: members, _lat: centerLat, _lng: centerLng })
+      }
+      return clusters
+    }
+    const clusters = getClusters(valid, zoom)
 
     if (heatmap) {
-      // add heatmap via MapLibre source
+      // add heatmap via MapLibre source — weighting avg_trust per cluster
       const geojson = {
         type: 'FeatureCollection',
-        features: valid.map(o => ({
+        features: clusters.map(c => ({
           type: 'Feature',
-          geometry: { type: 'Point', coordinates: [o.lng, o.lat] },
-          properties: { severity: o.severity },
+          geometry: { type: 'Point', coordinates: [c._lng ?? c.lng, c._lat ?? c.lat] },
+          properties: { severity: c.severity, trust: c._avgTrust ?? c.trust_score ?? 0 },
         })),
       }
       const addHeatmap = () => {
@@ -491,6 +530,7 @@ export default function PublicMap() {
           type: 'heatmap',
           source: 'heatmap-src',
           paint: {
+            'heatmap-weight': ['interpolate', ['linear'], ['get', 'trust'], 0, 0, 1, 1],
             'heatmap-intensity': 1,
             'heatmap-color': [
               'interpolate', ['linear'], ['heatmap-density'],
@@ -506,25 +546,33 @@ export default function PublicMap() {
       if (map.isStyleLoaded()) addHeatmap()
       else map.once('load', addHeatmap)
     } else {
-      // pin markers — PWA auto-tilt: saat 3D aktif, tap pin langsung fly miring biar gedung keliatan
-      valid.forEach(obs => {
+      // pin markers — clustered at low zoom, PWA auto-tilt, viral badge
+      clusters.forEach(obs => {
+        const isCluster = (obs._clusterCount ?? 1) > 1
         const color = SEVERITY_COLORS[obs.severity] ?? '#949893'
         const el = document.createElement('div')
-        el.style.cssText = `
-          width:14px;height:14px;border-radius:50%;
-          background:${color};border:2.5px solid white;
-          box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer;
-        `
+        if (isCluster) {
+          el.style.cssText = `width:28px;height:28px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,.30);cursor:pointer;display:flex;align-items:center;justify-content:center;color:white;font:700 11px 'JetBrains Mono',monospace;`
+          el.textContent = String(obs._clusterCount)
+        } else {
+          el.style.cssText = `width:14px;height:14px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer;`
+        }
+        const lng = obs._lng ?? obs.lng
+        const lat = obs._lat ?? obs.lat
         el.addEventListener('click', () => {
+          if (isCluster && map.getZoom() < 14) {
+            map.flyTo({ center: [lng, lat], zoom: 14, duration: 600 })
+            return
+          }
           if (is3DRef.current) {
-            // smooth tilt-to-target, keep 3D context — ringan, no extra fetch
-            map.flyTo({ center: [obs.lng, obs.lat], zoom: Math.max(map.getZoom(), 16.5), pitch: 58, bearing: -12, duration: 900, essential: true })
+            map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 16.5), pitch: 58, bearing: -12, duration: 900, essential: true })
           }
         })
-        // Recurring signal: other reports within 50m of this pin
-        const nearbyCount = valid.filter(
-          v => v.id !== obs.id && haversineKm(obs.lat, obs.lng, v.lat, v.lng) <= 0.05
-        ).length
+        // use precomputed cluster stats (no extra filter)
+        const clusterCount = obs._clusterCount ?? 1
+        const topTrust = obs._maxTrust ?? obs.trust_score ?? 0
+        const firstTime = obs._firstTime ?? obs.timestamp ?? obs.created_at
+        const firstLabel = firstTime ? new Date(firstTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
         // Share payload — deep link to this specific report
         const shareText = `${obs.location_label ?? 'Road damage'} — ${obs.damage_class ?? ''} (${obs.summary ?? ''}) via Mat(a)Mu`
         const shareUrl = window.location.origin + '/r/' + obs.id
@@ -557,33 +605,80 @@ export default function PublicMap() {
             glyph('<path d="M4 4l16 16M20 4L4 20"/>'),
             'Share to X') +
           `</div>`
-        const popup = new maplibregl.Popup({ offset: 14, closeButton: false, maxWidth: '240px' })
+        const iconFileMap = { pothole:'pothole.svg', longitudinal_crack:'longitudinal-crack.svg', alligator_crack:'alligator-crack.svg', rutting:'rutting.svg', flooding:'flooding.svg', surface_degradation:'surface-degradation.svg' }
+        const iconFile = iconFileMap[obs.damage_class] || iconFileMap[obs.class] || ''
+        const typeLabel = CLASS_LABELS[obs.damage_class] ?? CLASS_LABELS[obs.class] ?? (obs.damage_class ?? obs.class ?? '—').replace(/_/g,' ')
+        const sevColor = ({ high:'#D96868', severe:'#D96868', critical:'#D96868', medium:'#E8A629', moderate:'#E8A629', low:'#67B57A' }[obs.severity] || '#949893')
+        const popup = new maplibregl.Popup({ offset: 12, closeButton: false, maxWidth: '270px' })
           .setHTML(`
-            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.5;min-width:180px">
-              ${obs.evidence_url ? `<img src="${obs.evidence_url}" alt="Damage photo" loading="lazy" style="width:100%;height:110px;object-fit:cover;border-radius:8px;margin-bottom:6px;display:block" />` : ''}
-              <p style="font-weight:700;margin:0 0 3px;color:#111311">${obs.location_label ?? 'Location'}</p>
-              <p style="margin:0;color:#686C68">${CLASS_LABELS[obs.damage_class] ?? obs.damage_class ?? '—'}</p>
-              ${nearbyCount > 0 ? `<p style="margin:3px 0 0;color:#D96868;font-weight:700">+${nearbyCount} more report${nearbyCount > 1 ? 's' : ''} at this spot</p>` : ''}
-              <p style="margin:3px 0 0;color:#686C68">${obs.summary ?? ''}</p>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.4;min-width:200px;max-width:260px">
+              ${obs.evidence_url ? `<img src="${obs.evidence_url}" alt="Damage photo" loading="lazy" style="width:100%;height:90px;object-fit:cover;border-radius:8px;display:block" />` : `<div style="width:100%;height:60px;border-radius:8px;background:#F1F2ED;display:flex;align-items:center;justify-content:center;color:#949893;font-size:10px">No photo</div>`}
+              <hr style="margin:6px 0;border:none;border-top:1px solid #E8E8E0" />
+              <p style="margin:0;color:#111311;font-weight:700;font-size:11px;line-height:1.3;word-break:break-word">${obs.location_label ?? obs.location ?? 'Unknown location'}</p>
+              <hr style="margin:6px 0;border:none;border-top:1px solid #E8E8E0" />
+              <div style="display:flex;align-items:center;gap:6px">
+                ${iconFile ? `<img src="/icons/${iconFile}" alt="" width="20" height="20" style="width:20px;height:20px;flex-shrink:0" />` : ''}
+                <span style="font-weight:600;color:#111311;text-transform:capitalize;font-size:11px">${typeLabel}</span>
+                <span style="margin-left:auto;background:${sevColor}15;color:${sevColor};font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;border:1px solid ${sevColor}30">${(obs.severity ?? '—').toUpperCase()}</span>
+              </div>
+              <hr style="margin:6px 0;border:none;border-top:1px solid #E8E8E0" />
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;text-align:center">
+                <div><div style="font-size:9px;color:#949893;letter-spacing:.04em">FIRST</div><div style="font-weight:700;color:#111311;font-size:10px">${firstLabel}</div></div>
+                <div style="border-left:1px solid #E8E8E0;border-right:1px solid #E8E8E0"><div style="font-size:9px;color:#949893;letter-spacing:.04em">TRUST</div><div style="font-weight:700;color:${topTrust>=0.85?'#67B57A':topTrust>=0.65?'#E8A629':'#D96868'};font-size:10px">${Math.round(topTrust*100)}</div></div>
+                <div><div style="font-size:9px;color:#949893;letter-spacing:.04em">REPORTS</div><div style="font-weight:700;color:${clusterCount>1?'#D96868':'#111311'};font-size:10px">${clusterCount}×</div></div>
+              </div>
+              <hr style="margin:6px 0;border:none;border-top:1px solid #E8E8E0" />
+              <div style="background:#F8F8F3;border-radius:6px;padding:6px 7px">
+                <div style="font-size:9px;color:#949893;letter-spacing:.06em;margin-bottom:2px">AI DESCRIPTION</div>
+                <div style="color:#111311;line-height:1.4;word-break:break-word;font-size:11px">${obs.summary ? String(obs.summary).replace(/</g,'&lt;') : '<span style="color:#949893">—</span>'}</div>
+                ${obs.note ? `<div style="margin-top:4px;color:#111311;font-style:italic;border-left:2px solid #F4A900;padding-left:5px;word-break:break-word;font-size:11px">Note: ${String(obs.note).replace(/</g,'&lt;')}</div>` : ''}
+              </div>
+              <hr style="margin:6px 0;border:none;border-top:1px solid #E8E8E0" />
               ${shareRow}
             </div>
           `)
         const marker = new maplibregl.Marker({ element: el })
-          .setLngLat([obs.lng, obs.lat])
+          .setLngLat([lng, lat])
           .setPopup(popup)
           .addTo(map)
         map._pub_markers.push(marker)
       })
     }
-  }, [observations, heatmap, is3D])
+  }, [observations, heatmap, is3D, zoom])
 
+  const myLocationRef = useRef(null)
   const locateMe = useCallback(() => {
+    const showMyPin = (lng, lat) => {
+      const map = mapRef.current
+      if (!map) return
+      map.flyTo({ center: [lng, lat], zoom: 15 })
+      // pin marker — blue dot with white border + pulse
+      if (myLocationRef.current) { try { myLocationRef.current.remove() } catch {} }
+      const el = document.createElement('div')
+      el.style.cssText = 'width:16px;height:16px;border-radius:50%;background:#4A90D9;border:3px solid #fff;box-shadow:0 0 0 4px rgba(74,144,217,.35),0 2px 8px rgba(0,0,0,.3);'
+      const dot = document.createElement('div')
+      dot.style.cssText = 'position:absolute;inset:-4px;border-radius:50%;background:rgba(74,144,217,.25);animation:my-pin-pulse 2s ease-out infinite'
+      el.style.position = 'relative'
+      el.appendChild(dot)
+      // inject keyframes once
+      if (!document.getElementById('my-pin-style')) {
+        const s = document.createElement('style')
+        s.id = 'my-pin-style'
+        s.textContent = '@keyframes my-pin-pulse{0%{transform:scale(.8);opacity:.7}70%{transform:scale(1.6);opacity:0}100%{transform:scale(1.6);opacity:0}}'
+        document.head.appendChild(s)
+      }
+      myLocationRef.current = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map)
+    }
     if (gps.gpsOn) {
-      mapRef.current?.flyTo({ center: [gps.lng, gps.lat], zoom: 15 })
+      showMyPin(gps.lng, gps.lat)
     } else {
       navigator.geolocation.getCurrentPosition(pos => {
-        mapRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15 })
-      })
+        showMyPin(pos.coords.longitude, pos.coords.latitude)
+      }, () => {
+        // fallback: still fly to last known anchor
+        const a = gps.gpsOn ? { lng: gps.lng, lat: gps.lat } : null
+        if (a) showMyPin(a.lng, a.lat)
+      }, { enableHighAccuracy: true, timeout: 8000 })
     }
   }, [gps])
 
@@ -595,6 +690,11 @@ export default function PublicMap() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
+      {/* Logo — top-left transparent, thin title — hanya mobile phone (hidden di PWA Desktop) */}
+      <div className="absolute top-3 left-3 z-10 hidden max-md:flex flex-col items-center gap-0.5 bg-transparent md:hidden">
+        <img src="/logo.png" alt="Mat(a)Mu" className="w-8 h-8 rounded-xl object-cover bg-transparent" />
+        <span className="text-[11px] font-extralight tracking-[0.14em] text-white leading-none" style={{ fontWeight: 200 }}>Mat(a)Mu</span>
+      </div>
       {/* Floating filter bar — dark pill for contrast over light map */}
       <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-dark/90 backdrop-blur-sm rounded-xl shadow-float px-3 py-2">
         <SlidersHorizontal size={14} className="text-accent shrink-0" />
@@ -610,9 +710,28 @@ export default function PublicMap() {
         </select>
       </div>
 
-      {/* GPS status — compact, top-right corner (never under tooltips) */}
-      <div className="absolute top-3 right-3 z-10 w-max max-w-[46%]">
-        <GpsBanner gps={gps} compact />
+      {/* GPS status — left sidebar vertical, transparent full, text only (no background) */}
+      <div className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-2 bg-transparent px-1 py-2 max-h-[60vh]">
+        {gps.status === 'on' ? (
+          <>
+            <Layers size={14} className="text-white shrink-0" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.8))' }} />
+            <span className="w-2.5 h-2.5 rounded-full bg-success animate-pulse shrink-0" style={{ boxShadow: '0 0 6px rgba(103,181,122,0.9)' }} />
+            <span className="text-[11px] font-semibold text-white tracking-widest whitespace-nowrap" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+              GPS active{gps.accuracy != null ? ` (±${Math.round(gps.accuracy)}m)` : ''}
+            </span>
+          </>
+        ) : gps.status === 'searching' ? (
+          <>
+            <span className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full animate-spin shrink-0" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.8))' }} />
+            <span className="text-[11px] font-semibold text-white tracking-widest whitespace-nowrap" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>Searching…</span>
+          </>
+        ) : (
+          <>
+            <Layers size={14} className="text-white shrink-0" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.8))' }} />
+            <span className="w-2.5 h-2.5 rounded-full bg-danger shrink-0" style={{ boxShadow: '0 0 4px rgba(0,0,0,0.5)' }} />
+            <span className="text-[10px] font-semibold text-white tracking-widest whitespace-nowrap" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>GPS off</span>
+          </>
+        )}
       </div>
 
       {/* PWA 3D hint — ringan, auto-dismiss, muncul sekali */}
@@ -631,10 +750,10 @@ export default function PublicMap() {
         <span className="text-[10px] font-medium text-white/70 leading-tight">active<br />within 2 km</span>
       </div>
 
-      {/* Report CTA — viewing is open, creating requires sign-in (gated in /capture) */}
+      {/* Report CTA — hidden on mobile (use BottomNav Report / Camera), avoids overlap with “active within 2 km” */}
       <Link
         to="/capture"
-        className="absolute bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-accent text-dark rounded-xl shadow-float px-4 py-2.5 text-sm font-bold whitespace-nowrap active:scale-95 transition-transform"
+        className="hidden md:flex absolute bottom-4 left-1/2 -translate-x-1/2 z-10 items-center gap-2 bg-accent text-dark rounded-xl shadow-float px-4 py-2.5 text-sm font-bold whitespace-nowrap active:scale-95 transition-transform"
       >
         <Camera size={16} /> Report Damage
       </Link>
@@ -642,17 +761,8 @@ export default function PublicMap() {
       {/* Map */}
       <div ref={containerRef} className="flex-1" />
 
-      {/* Floating controls */}
-      <div className="absolute bottom-20 md:bottom-4 right-4 flex flex-col gap-2">
-        <button
-          onClick={() => setShowPowerUp(true)}
-          aria-label="Power Up"
-          title={powerKey ? 'Power Up — TomTom key saved' : 'Power Up — add TomTom key for live traffic'}
-          className="relative w-10 h-10 rounded-xl shadow-float flex items-center justify-center bg-surface text-text-secondary hover:bg-surface-2 transition-colors"
-        >
-          <Zap size={18} />
-          {!powerKey && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-accent ring-2 ring-surface"></span>}
-        </button>
+      {/* Floating controls — vertical center right (PowerUp removed for PWA) */}
+      <div className="absolute top-1/2 -translate-y-1/2 right-3 md:right-4 flex flex-col gap-2 z-10">
         <button
           onClick={toggleBaseMap}
           aria-label="Base map"
@@ -724,61 +834,7 @@ export default function PublicMap() {
             </span>
           )}
         </div>
-      )}
-
-      {/* PowerUp Modal — ROUND STATION · PROVIDER SETTINGS (like God’s Eye) */}
-      {showPowerUp && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-dark/60 backdrop-blur-sm" onClick={() => setShowPowerUp(false)}></div>
-          <div className="relative w-full max-w-[420px] bg-surface rounded-2xl shadow-float border border-gray-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-bold tracking-widest text-accent uppercase">ROUND STATION · PROVIDER SETTINGS</p>
-                <h2 className="text-base font-bold text-text-primary mt-1">Power up the globe</h2>
-                <p className="text-xs text-text-secondary mt-1 leading-relaxed">The map already flies keyless. Every key below switches on another real feed — paste one and it’s saved locally. Without it, the map runs with simulation.</p>
-              </div>
-              <button onClick={() => setShowPowerUp(false)} aria-label="Close" className="w-8 h-8 rounded-full bg-surface-2 flex items-center justify-center text-text-secondary hover:bg-gray-200">✕</button>
-            </div>
-            <div className="p-5 space-y-4">
-              <section className="rounded-xl border border-gray-200 bg-white p-4">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <strong className="text-sm font-bold">TOMTOM</strong>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">FREE</span>
-                  <a href="https://developer.tomtom.com" target="_blank" rel="noopener" className="ml-auto text-[11px] font-bold text-accent hover:underline">GET KEY ↗</a>
-                </div>
-                <p className="text-xs text-text-secondary mt-1.5">Real live traffic — green/orange/red flow. Without a key it runs a simulation on real roads.</p>
-                <div className="mt-3 flex gap-2">
-                  <input value={powerKey} onChange={e => setPowerKey(e.target.value)} type="password" autoComplete="off" spellCheck={false} placeholder="paste TOMTOM_API_KEY" className="flex-1 bg-surface-2 border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-accent/40" />
-                  <button onClick={() => { const v = powerKey.trim(); if (!v) return; if (v.length > 512 || /\s/.test(v)) { alert('Invalid key'); return } try { localStorage.setItem('matamu-tomtom-key', v) } catch {}; setShowPowerUp(false) }} className="px-4 py-2 rounded-lg bg-dark text-white text-xs font-bold hover:bg-dark/90">Save</button>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <span className={`text-[11px] ${powerKey ? 'text-ok font-medium' : 'text-text-secondary'}`}>{powerKey ? '● Saved — live traffic will be used' : '○ Not set — simulation mode'}</span>
-                  {powerKey && <button onClick={() => { if (!confirm('Remove TomTom key?')) return; try { localStorage.removeItem('matamu-tomtom-key') } catch {}; setPowerKey('') }} className="ml-auto text-[11px] font-bold text-bad hover:underline">Remove</button>}
-                </div>
-              </section>
-              <section className="rounded-xl border border-gray-200 bg-white p-4">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-sky-500"></span>
-                  <strong className="text-sm font-bold">CESIUM ION</strong>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">FREE</span>
-                  <a href="https://ion.cesium.com/tokens" target="_blank" rel="noopener" className="ml-auto text-[11px] font-bold text-accent hover:underline">GET KEY ↗</a>
-                </div>
-                <p className="text-xs text-text-secondary mt-1.5">Base map — Bing aerial & labels + world terrain. Without a key the map uses keyless OSM/Esri. Toggle via globe button.</p>
-                <div className="mt-3 flex gap-2">
-                  <input value={ionKey} onChange={e => setIonKey(e.target.value)} type="password" autoComplete="off" spellCheck={false} placeholder="paste CESIUM_ION_TOKEN" className="flex-1 bg-surface-2 border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-accent/40" />
-                  <button onClick={() => { const v = ionKey.trim(); if (!v) return; if (v.length > 512 || /\s/.test(v)) { alert('Invalid key'); return } try { localStorage.setItem('matamu-cesium-ion-token', v) } catch {}; setShowPowerUp(false) }} className="px-4 py-2 rounded-lg bg-dark text-white text-xs font-bold hover:bg-dark/90">Save</button>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <span className={`text-[11px] ${ionKey ? 'text-ok font-medium' : 'text-text-secondary'}`}>{ionKey ? '● Saved — Bing maps enabled' : '○ Not set — keyless mode'}</span>
-                  {ionKey && <button onClick={() => { if (!confirm('Remove Cesium Ion token?')) return; try { localStorage.removeItem('matamu-cesium-ion-token') } catch {}; setIonKey('') }} className="ml-auto text-[11px] font-bold text-bad hover:underline">Remove</button>}
-                </div>
-              </section>
-              <p className="text-[11px] text-text-secondary bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">Tip: Leave empty to keep keyless. Live feeds activate on next toggle.</p>
-            </div>
-          </div>
-        </div>
-      )}
+       )}
     </div>
   )
 }

@@ -29,6 +29,8 @@ class Observation(models.Model):
     reporter_name = models.CharField(max_length=255, blank=True, default="")
     # Human-readable reason when status=pending_verification (shown in PWA + IQE queue)
     review_reason = models.TextField(blank=True, default="")
+    # Free text small note from reporter (optional, multiplexer context)
+    note = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

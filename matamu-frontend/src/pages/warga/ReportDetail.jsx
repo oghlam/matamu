@@ -20,10 +20,30 @@ export default function ReportDetail() {
   const { id } = useParams()
   const [obs, setObs] = useState(null)
   const [error, setError] = useState(null)
+  const [cluster, setCluster] = useState(null) // { count, topTrust, firstTime, notes }
 
   useEffect(() => {
     api.get(`/api/v1/observations/${id}`)
-      .then(setObs)
+      .then(o => {
+        setObs(o)
+        // fetch nearby for multiplexer count (50m same class)
+        if (o.lat != null && o.lng != null) {
+          api.get(`/api/v1/observations/nearby?lat=${o.lat}&lng=${o.lng}&radius_m=50`)
+            .then(list => {
+              const sameClass = (Array.isArray(list) ? list : []).filter(v => (v.class ?? v.damage_class) === (o.class ?? o.damage_class))
+              const count = sameClass.length || 1
+              const topTrust = sameClass.length ? Math.max(...sameClass.map(v => v.trust_score ?? 0), o.trust_score ?? 0) : (o.trust_score ?? 0)
+              // fetch full detail for firstTime? use nearby timestamps if available, fallback to obs
+              const first = sameClass.reduce((min, v) => {
+                const t = v.created_at ?? v.timestamp
+                if (!t) return min
+                return !min || new Date(t) < new Date(min) ? t : min
+              }, o.created_at ?? o.timestamp)
+              setCluster({ count, topTrust, firstTime: first, notes: sameClass.map(v => v.note).filter(Boolean) })
+            })
+            .catch(() => setCluster({ count: 1, topTrust: o.trust_score, firstTime: o.created_at ?? o.timestamp, notes: [] }))
+        }
+      })
       .catch(() => setError('Report not found'))
   }, [id])
 
@@ -64,6 +84,16 @@ export default function ReportDetail() {
 
               {obs.summary && (
                 <p className="text-xs text-text-secondary break-words">{obs.summary}</p>
+              )}
+
+              {cluster && (
+                <p className={`text-[11px] rounded-lg px-2.5 py-1.5 break-words ${cluster.count >= 3 ? 'bg-accent/15 text-accent font-semibold' : 'bg-surface-2 text-text-secondary'}`}>
+                  Reported {cluster.count}× at this spot · top trust {Math.round((cluster.topTrust ?? 0)*100)} · first {cluster.firstTime ? new Date(cluster.firstTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                  {cluster.count >= 3 && <span className="ml-2 text-[10px] bg-accent text-dark px-1.5 py-0.5 rounded-full">🔥 Viral — priority</span>}
+                </p>
+              )}
+              {obs.note && (
+                <p className="text-xs text-text-primary bg-accent/10 border-l-2 border-accent rounded px-3 py-2 break-words italic">Note: {obs.note}</p>
               )}
 
               {obs.lat != null && (

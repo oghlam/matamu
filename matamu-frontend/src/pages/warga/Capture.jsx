@@ -30,8 +30,10 @@ const STATES = {
 export default function Capture() {
   const [session, setSession] = useState(() => getSession())
   const [loginError, setLoginError] = useState(null)
+  const [autoLogging, setAutoLogging] = useState(false)
   const [state, setState] = useState(STATES.idle)
   const [photo, setPhoto] = useState(null)   // { file, url }
+  const [note, setNote] = useState('') // free text small note
   const [submitError, setSubmitError] = useState(null)
   const [result, setResult] = useState(null) // { status, trust_score, review_reason, ... }
   const [cameraMode, setCameraMode] = useState(false)
@@ -43,13 +45,30 @@ export default function Capture() {
   const gpsRef = useRef(gps)
   gpsRef.current = gps
 
-  // Render Google button when logged out
+  // Demo: auto dev-login when no GOOGLE_CLIENT_ID (or PWA standalone) — no login page flicker
   useEffect(() => {
-    if (!session && gbtnRef.current && GOOGLE_CLIENT_ID) {
+    if (!session && !GOOGLE_CLIENT_ID) {
+      let cancelled = false
+      setAutoLogging(true)
+      devLogin().then(s => { if (!cancelled) { setSession(s); setAutoLogging(false) } }).catch(err => { if (!cancelled) { setLoginError(err); setAutoLogging(false) } })
+      return () => { cancelled = true }
+    }
+    // also auto-bypass when installed as PWA (standalone) even if client ID exists — demo convenience
+    if (!session && window.matchMedia?.('(display-mode: standalone)').matches) {
+      let cancelled = false
+      setAutoLogging(true)
+      devLogin().then(s => { if (!cancelled) { setSession(s); setAutoLogging(false) } }).catch(() => { if (!cancelled) setAutoLogging(false) })
+      return () => { cancelled = true }
+    }
+  }, [session])
+
+  // Render Google button when logged out (real auth mode)
+  useEffect(() => {
+    if (!session && gbtnRef.current && GOOGLE_CLIENT_ID && !autoLogging) {
       gbtnRef.current.innerHTML = ''
       renderGoogleButton(gbtnRef.current, setSession, setLoginError)
     }
-  }, [session])
+  }, [session, autoLogging])
 
   function logout() {
     clearSession()
@@ -103,6 +122,7 @@ export default function Capture() {
   function reset() {
     if (photo?.url) URL.revokeObjectURL(photo.url)
     setPhoto(null)
+    setNote('')
     setSubmitError(null)
     setResult(null)
     setState(STATES.idle)
@@ -123,6 +143,7 @@ export default function Capture() {
         lat: gps.lat,
         lng: gps.lng,
         ...(gps.accuracy != null && { gps_accuracy: gps.accuracy }),
+        ...(note.trim() && { note: note.trim() }),
         id_token: session.id_token,
       }).toString()
       const r = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/api/v1/capture?${q}`, {
@@ -146,6 +167,14 @@ export default function Capture() {
 
   // ── Not logged in ──
   if (!session) {
+    if (autoLogging) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 pb-24 md:pb-6">
+          <span className="w-8 h-8 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+          <p className="text-sm text-text-secondary">Preparing demo session…</p>
+        </div>
+      )
+    }
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-5 p-6 pb-24 md:pb-6">
         <div className="w-16 h-16 rounded-2xl bg-surface shadow-card flex items-center justify-center">
@@ -270,6 +299,20 @@ export default function Capture() {
           >
             <X size={16} />
           </button>
+        </div>
+
+        {/* Free text small note */}
+        <div>
+          <label className="text-xs font-semibold text-text-primary">Add a note <span className="font-normal text-text-muted">(optional)</span></label>
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            maxLength={500}
+            placeholder="e.g., deep hole near drain, waterlogged after rain"
+            className="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
+            rows={2}
+          />
+          <p className="text-[11px] text-text-muted text-right mt-0.5">{note.length}/500</p>
         </div>
 
         {submitError && (
