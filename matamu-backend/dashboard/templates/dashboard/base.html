@@ -316,8 +316,6 @@
     
     let currentTab = 'providers';
     let healthData = null;
-    let healthInterval = null;
-    
     function switchTab(tab){
       currentTab = tab;
       if(tab === 'providers'){
@@ -328,7 +326,6 @@
         titleEl.textContent = 'ROUND STATION · PROVIDER SETTINGS';
         headingEl.textContent = 'Power up the globe';
         descEl.textContent = 'The map already flies keyless. Every key below switches on another real feed — paste one and it\'s saved into this app\'s local configuration. Without it, the map runs with simulation — no problem.';
-        if(healthInterval) clearInterval(healthInterval);
       } else {
         tabProviders.className = 'flex-1 px-5 py-2.5 text-xs font-bold transition-colors text-ts hover:text-tp';
         tabHealth.className = 'flex-1 px-5 py-2.5 text-xs font-bold transition-colors text-accent border-b-2 border-accent';
