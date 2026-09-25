@@ -13,12 +13,8 @@ function hidePreload() {
 }
 
 function isStandalone() {
-  try {
-    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
-  } catch { return false }
+  try { return window.matchMedia('(display-mode: standalone)').matches } catch { return false }
 }
-
-// ponytail: hide after mount, but wait for fonts so text doesn't pop after logo (fixes "logo saja" flash)
 const start = performance.now()
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -28,17 +24,9 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 function scheduleHide() {
-  const elapsed = performance.now() - start
-  // standalone already showed native splash (same #F8F8F3 + icon) → hide instantly after first paint
   const minDelay = isStandalone() ? 80 : 400
-  const delay = Math.max(0, minDelay - elapsed)
-  const run = () => setTimeout(hidePreload, delay)
-  // wait for JetBrains Mono so h1/sub don't FOIT after logo
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(run).catch(run)
-  } else {
-    run()
-  }
+  const delay = Math.max(0, minDelay - (performance.now() - start))
+  setTimeout(hidePreload, delay)
 }
 requestAnimationFrame(scheduleHide)
 // fallback: window load (covers slow chunk)
