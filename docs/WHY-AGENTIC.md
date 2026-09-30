@@ -160,9 +160,9 @@ System doesn't wait for human — **executes immediately**:
 
 ---
 
-## Why This Matters for OpenCV AI Competition 2026
+## Why This Matters for Real-World Deployment
 
-Competition theme: **"AI that works in the real world"**
+Design goal: **"AI that works in the real world"**
 
 ### Real-world = Production-Ready
 
@@ -255,7 +255,7 @@ log_trace(perception, decision, action)
 - **Dashboard `/agentic/` page** shows all traces:
   - Timestamp, detection, confidence, routing, decision reason, actions
   - Filter by status, routing (TypeSafe/Bedrock), date range
-- Juri dapat audit keputusan AI secara transparan
+- Auditors can transparently review every AI decision
 
 ---
 
@@ -324,7 +324,7 @@ Mat(a)Mu is an **AI agent** because it:
 
 ---
 
-## Competition Evaluation Criteria Alignment
+## Evaluation Summary
 
 | Criteria | How Mat(a)Mu Delivers |
 |----------|----------------------|
