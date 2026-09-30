@@ -17,7 +17,7 @@
 ![AWS Bedrock](https://img.shields.io/badge/AWS_Bedrock-Sonnet_Haiku-FF9900?logo=amazon&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-EC2_S3-232F3E?logo=amazon&logoColor=white)
 
-![Mat(a)Mu Logo](docs/logo.png)
+![Mat(a)Mu agentic pipeline diagram](docs/matamu-agentic-diagram.png)
 
 ---
 
