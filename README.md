@@ -11,6 +11,11 @@
 ![MapLibre GL](https://img.shields.io/badge/MapLibre_GL-4-396CB2?logo=maplibre&logoColor=white)
 ![PostGIS](https://img.shields.io/badge/PostGIS-16-336791?logo=postgresql&logoColor=white)
 ![PWA](https://img.shields.io/badge/PWA-enabled-4CAF50)
+![TypeSafe AI](https://img.shields.io/badge/TypeSafe_AI-eval-6B7280)
+![TomTom](https://img.shields.io/badge/TomTom-traffic-DF1B12?logo=tomtom&logoColor=white)
+![Cesium Ion](https://img.shields.io/badge/Cesium_Ion-3D_tiles-2196F3?logo=cesium&logoColor=white)
+![AWS Bedrock](https://img.shields.io/badge/AWS_Bedrock-Sonnet_Haiku-FF9900?logo=amazon&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-EC2_S3-232F3E?logo=amazon&logoColor=white)
 
 ![Mat(a)Mu Logo](docs/logo.png)
 
