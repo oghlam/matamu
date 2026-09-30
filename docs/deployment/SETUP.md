@@ -29,7 +29,7 @@ Jika LiteLLM belum jalan: `litellm --config litellm_config.yaml` atau cek servic
 
 1. **SSH Key:** Add your `MyServerKey.pem` content to GitHub Secrets as `EC2_SSH_DEPLOY_KEY`.
 2. **Secrets:** Add following to GitHub Repo Secrets:
-   - `EC2_HOST`: <redacted-ip>
+   - `EC2_HOST`: <your-ec2-public-ip>
    - `EC2_USER`: ec2-user
    - `DEPLOY_PATH`: /var/www/matamu
 3. **EC2 Setup (Initial):**
