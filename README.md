@@ -1,13 +1,8 @@
 # Mat(a)Mu - Mata Jalan Masyarakat
 
-> **Agentic Computer Vision** for road damage monitoring via citizen reports  
-> OpenCV AI Competition 2026 · Blaz Labs
+> **Agentic Computer Vision** for road damage monitoring via citizen reports
 
 ![Mat(a)Mu Logo](docs/logo.png)
-
-[![Sprint Status](https://img.shields.io/badge/Sprint-0--4%20Done-success)](docs/sprints/PROGRESS-2026-09-23.md)
-[![Integration Tests](https://img.shields.io/badge/Tests-42%2F42%20PASS-brightgreen)](#verification)
-[![Agentic Scenarios](https://img.shields.io/badge/Agentic-4%2F4%20PASS-brightgreen)](docs/agentic-traces/)
 
 ---
 
@@ -31,7 +26,7 @@ Photo → Perception (YOLO+IQE+SFace+TypeSafe+PostGIS)
 ```
 **Result:** 1 operator = 1000+ reports/day. **100× scalability.**
 
-📖 **[Read: Why Agentic Vision?](docs/WHY-AGENTIC.md)** — Full technical deep-dive on perception-decision-action loop, business impact, and competition relevance.
+📖 **[Read: Why Agentic Vision?](docs/WHY-AGENTIC.md)** — Full technical deep-dive on the perception-decision-action loop, business impact, and real-world relevance.
 
 ---
 
@@ -106,7 +101,7 @@ matamu/
 
 ### Citizen (React PWA — `http://localhost:5173`)
 - **Capture**: Live camera (viewfinder + scanline) or gallery upload → location from photo EXIF (file later from a safe place) or live GPS fallback → submit
-- **Auth**: Google OAuth login (dev mode: bypass) — viewing only without login
+- **Auth**: Google sign-in — browse freely without an account, sign in to submit reports
 - **Verified / Pending**: Submit result shown instantly + reason + trust score
 - **My Reports**: Only your own reports + pending reasons + share buttons
 - **Public Map**: Severity-colored pins, photos in popups, heatmap, 2 km radius KPI, recurring count, OSRM directions, per-report share (`/r/:id`) + **3D terrain & buildings** (free DEM + OpenFreeMap, Box/Mountain toggle, pinch to tilt, auto-tilt on pin tap) + **Traffic** (free green-box sim 6×4 via Overpass, live TomTom green/orange/red via PowerUp, Fetching→Completed status chip) + **Base map** (Light/Satellite/Bing via Ion, PowerUp) + **PowerUp** (ROUND STATION modal for TomTom & Cesium Ion keys)
@@ -148,33 +143,11 @@ Opens 2 terminals (Django `:8080` + Vite `:5173`), then a browser on the dashboa
 
 | URL | Contents |
 |---|---|
-| `http://localhost:5173` | Citizen PWA (dev mode: "Sign in (Dev Mode)" button) |
-| `http://127.0.0.1:8080/dashboard/` | Operator Dashboard (`admin` / `<redacted-password>`) |
+| `http://localhost:5173` | Citizen PWA |
+| `http://127.0.0.1:8080/dashboard/` | Operator Dashboard |
 | `http://127.0.0.1:8080/api/docs` | API docs (Ninja) |
 
-> Port 8080 (not 8000 — claimed by a Windows service). Real Google login needs `GOOGLE_CLIENT_ID` (see `.env.example`).
-
----
-
-## Verification
-
-**Integration Tests:**
-```cmd
-cd matamu-backend
-venv\Scripts\python.exe docs\integration_test.py  # 42/42 PASS
-```
-
-**Agentic Scenario Tests:**
-```cmd
-venv\Scripts\python.exe docs\agentic_scenario_runner.py  # 4/4 PASS
-```
-
-| Scenario | Condition | Expected | Result |
-|----------|-----------|----------|--------|
-| **A** | High conf (0.88) + high trust (0.88) | published | ✅ PASS |
-| **B** | Low YOLO conf (0.45) | pending_verification | ✅ PASS |
-| **C** | 3+ reports same area | recurring_followup_created | ✅ PASS |
-| **D** | Faces detected | blur applied | ✅ PASS |
+> Backend serves on port 8080. Copy `.env.example` to `.env` and fill in the required keys.
 
 ---
 
