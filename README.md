@@ -35,11 +35,11 @@ Photo → Perception (YOLO+IQE+SFace+TypeSafe+PostGIS)
 
 ---
 
-## Apa Itu Mat(a)Mu?
+## What Is Mat(a)Mu?
 
-Mat(a)Mu ("Mata Jalan Mu" — Your Road Eyes) adalah aplikasi PWA yang mengubah warga menjadi sensor hidup untuk monitoring kondisi jalan. Cukup foto → submit → AI agent memproses, mendeteksi kerusakan (YOLO), blur wajah (SFace), nilai kepercayaan (IQE), dan buat summary + severity.
+Mat(a)Mu ("Mata Jalan Mu" — Your Road Eyes) is a PWA that turns citizens into living sensors for road condition monitoring. Just snap a photo → submit → the AI agent processes it: detects damage (YOLO), blurs faces (SFace), scores trust (IQE), and writes a summary + severity.
 
-**Operator** dapat prioritas perbaikan berdasar severity + evidence + geo-proximity.
+**Operators** get repair priorities based on severity + evidence + geo-proximity.
 
 ---
 
@@ -71,61 +71,60 @@ Mat(a)Mu ("Mata Jalan Mu" — Your Road Eyes) adalah aplikasi PWA yang mengubah 
 ## Stack
 
 - **CV**: OpenCV 5.0.0.93, YOLOv11n (Ultralytics 8.4.159), SFace/YuNet
-- **Backend**: Django 5.1, Django Ninja 1.3.0, google-auth 2.58.0 (SQLite lokal; PostGIS di EC2) + Overpass proxy (`/api/overpass`)
+- **Backend**: Django 5.1, Django Ninja 1.3.0, google-auth 2.58.0 (local SQLite; PostGIS on EC2) + Overpass proxy (`/api/overpass`)
 - **Frontend**: React 19, Vite 8.3.0, Tailwind 3.4.19, MapLibre GL 4.7.1, exifr, JetBrains Mono
 - **Map**: CARTO Positron + Esri World Imagery (keyless) + MapLibre 3D terrain (demotiles) + OpenFreeMap 3D buildings + Overpass roads + TomTom live traffic (via PowerUp) + Cesium Ion Bing (via PowerUp)
-- **LLM**: Haiku 4.5 (summary) + Bedrock Sonnet 4.5 (severity) via LiteLLM — mock lokal bila proxy kosong
+- **LLM**: Haiku 4.5 (summary) + Bedrock Sonnet 4.5 (severity) via LiteLLM — local mock when the proxy is empty
 - **Agentic**: Perception → Decision → Action + TypeSafe confidence gating, trace JSON
-- **Storage**: S3 `matamu-evidence` (prod); `/media/` lokal (dev)
+- **Storage**: S3 `matamu-evidence` (prod); local `/media/` (dev)
 
 ---
 
-## Struktur Repo
+## Repository Structure
 
 ```
 matamu/
 ├── matamu-backend/         # Django + PostGIS + agentic loop
 │   ├── api/                # Django Ninja endpoints
-│   ├── observations/       # Model utama
+│   ├── observations/       # Main model
 │   ├── dashboard/          # Operator panel
 │   └── requirements.txt
 ├── matamu-frontend/        # React PWA
-│   ├── src/pages/warga/    # Warga: Capture, MyReports, PublicMap
+│   ├── src/pages/warga/    # Citizen: Capture, MyReports, PublicMap
 │   └── src/components/
 ├── matamu-cv/              # CV pipeline (YOLO, SFace, IQE)
 └── docs/
     ├── WHY-AGENTIC.md      # 🔥 Value proposition deep-dive
     ├── architecture/       # System & agentic flow
     ├── agentic-traces/     # Execution logs
-    ├── evaluation/         # Failure cases
-    └── sprints/            # Sprint plan & progress
+    └── evaluation/         # Failure cases
 ```
 
 ---
 
-## Fitur Utama
+## Features
 
-### Warga (React PWA — `http://localhost:5173`)
-- **Capture**: Live camera (viewfinder + scanline) atau upload galeri → GPS live wajib aktif → submit
-- **Auth**: Login Google OAuth (mode dev: bypass) — tanpa login hanya bisa melihat
-- **Verified / Pending**: Hasil submit tampil langsung + alasan + trust score
-- **My Reports**: Hanya laporan sendiri + alasan pending + tombol share
-- **Public Map**: Pin warna severity, foto di popup, heatmap, KPI radius 2 km, recurring count, direction OSRM, share per laporan (`/r/:id`) + **3D terrain & buildings** (free DEM + OpenFreeMap, toggle Box/Mountain, pinch to tilt, auto-tilt on pin tap) + **Traffic** (free sim green boxes 6×4 via Overpass, live TomTom green/orange/red via PowerUp, status chip Fetching→Completed) + **Base map** (Light/Satellite/Bing via Ion, PowerUp) + **PowerUp** (ROUND STATION modal for TomTom & Cesium Ion keys)
-- **Anti-spoof**: EXIF galeri disilang GPS (>500m ditolak); backend paksa pending
+### Citizen (React PWA — `http://localhost:5173`)
+- **Capture**: Live camera (viewfinder + scanline) or gallery upload → location from photo EXIF (file later from a safe place) or live GPS fallback → submit
+- **Auth**: Google OAuth login (dev mode: bypass) — viewing only without login
+- **Verified / Pending**: Submit result shown instantly + reason + trust score
+- **My Reports**: Only your own reports + pending reasons + share buttons
+- **Public Map**: Severity-colored pins, photos in popups, heatmap, 2 km radius KPI, recurring count, OSRM directions, per-report share (`/r/:id`) + **3D terrain & buildings** (free DEM + OpenFreeMap, Box/Mountain toggle, pinch to tilt, auto-tilt on pin tap) + **Traffic** (free green-box sim 6×4 via Overpass, live TomTom green/orange/red via PowerUp, Fetching→Completed status chip) + **Base map** (Light/Satellite/Bing via Ion, PowerUp) + **PowerUp** (ROUND STATION modal for TomTom & Cesium Ion keys)
+- **Anti-spoof**: Gallery photos use embedded EXIF location; photos without EXIF fall back to live GPS
 
 ### Operator (Django Dashboard — `/dashboard/`)
-- **Overview**: MapLibre canvas-first (CARTO + satelit Esri hybrid + **Bing via Ion**), KPI pills, kartu Location + foto bukti + arc severity (compact 72px, h-168), **header collapse ^/v**, 3D terrain & buildings, Traffic (same green boxes, live via PowerUp), base map Light/Sat/Ion cycle, **PowerUp** (above Logout) for TomTom & Ion keys
-- **Reports**: Tabel + filter + kolom Reporter (email OAuth)
-- **IQE Queue**: Antrian trust rendah + thumbnail + modal inspeksi + Accept/Reject (Supervisor only) + **review_reason** display (why pending)
-- **Agentic**: `/dashboard/agentic/` — trace viewer 50 terbaru (timestamp, detection, conf, status, routing, decision reason, actions)
+- **Overview**: Canvas-first MapLibre map (CARTO + Esri hybrid satellite + **Bing via Ion**), KPI pills, Location card + evidence photo + severity arc (compact 72px, h-168), **collapsible header ^/v**, 3D terrain & buildings, Traffic (same green boxes, live via PowerUp), Light/Sat/Ion base map cycle, **PowerUp** (above Logout) for TomTom & Ion keys
+- **Reports**: Table + filters + Reporter column (OAuth email) + Supervisor-only maintenance delete
+- **IQE Queue**: Low-trust queue + thumbnails + inspection modal + Accept/Reject (Supervisor only) + **review_reason** display (why pending)
+- **Agentic**: `/dashboard/agentic/` — viewer for the 50 latest traces (timestamp, detection, conf, status, routing, decision reason, actions)
 - **Follow-up**: Acknowledge / resolve + RBAC
-- **RBAC**: Grup Operator vs Supervisor (`can_moderate_iqe`); akun via `/admin/` (tidak didemokan ke juri)
+- **RBAC**: Operator vs Supervisor groups (`can_moderate_iqe`); accounts via `/admin/`
 
 ### Agentic Loop
-1. **Perception**: YOLO detect → IQE trust → SFace blur → TypeSafe 5 pertanyaan → nearby count
-2. **Decision**: Confidence-gated routing (auto-publish vs pending + alasan)
-3. **Action**: Publish/pending, S3 (atau `/media/` lokal), trace JSON
-4. **Dijaga 2x**: AI gate-1, operator gate-2 (modal foto IQE)
+1. **Perception**: YOLO detect → IQE trust → SFace blur → TypeSafe 5 questions → nearby count
+2. **Decision**: Confidence-gated routing (auto-publish vs pending + reason)
+3. **Action**: Publish/pending, S3 (or local `/media/`), trace JSON
+4. **Double-guarded**: AI gate-1, operator gate-2 (IQE photo modal)
 
 **Example Use Case:** 500 reports overnight → 450 auto-published (high conf), 50 routed to IQE (low conf) → operator reviews 50 in 90 minutes (not 500 in 8 hours).
 
@@ -135,25 +134,25 @@ matamu/
 
 - **RDD**: Road Damage Detection (Facebook Research)
 - **Roboflow**: Pothole dataset (YOLO format)
-- **Sidoarjo**: Foto lokal untuk demo + fine-tuning
+- **Sidoarjo**: Local photos for demo + fine-tuning
 
 ---
 
-## Menjalankan Lokal
+## Running Locally
 
 ```cmd
 start-dev.bat
 ```
 
-Membuka 2 terminal (Django `:8080` + Vite `:5173`) lalu browser ke dashboard.
+Opens 2 terminals (Django `:8080` + Vite `:5173`), then a browser on the dashboard.
 
-| URL | Isi |
+| URL | Contents |
 |---|---|
-| `http://localhost:5173` | PWA Warga (mode dev: tombol "Masuk (Mode Dev)") |
+| `http://localhost:5173` | Citizen PWA (dev mode: "Sign in (Dev Mode)" button) |
 | `http://127.0.0.1:8080/dashboard/` | Operator Dashboard (`admin` / `<redacted-password>`) |
 | `http://127.0.0.1:8080/api/docs` | API docs (Ninja) |
 
-> Port 8080 (bukan 8000 — diklaim Windows service). Login Google asli butuh `GOOGLE_CLIENT_ID` (lihat `.env.example`).
+> Port 8080 (not 8000 — claimed by a Windows service). Real Google login needs `GOOGLE_CLIENT_ID` (see `.env.example`).
 
 ---
 
@@ -198,17 +197,3 @@ Key benefits:
 ## License
 
 MIT © 2026 Mat(a)Mu Team
-
----
-
-## Competition
-
-**OpenCV AI Competition 2026**  
-Blaz Labs Track  
-Deadline: 26 Oktober 2026, 23:59 PT
-
-**Status**: Sprint 0–4 selesai lokal. **24 Sep 2026 — Map 3D + Traffic + PowerUp + Base map Ion + Overpass proxy + P0-P2 optimizations** done (PWA & dashboard). Sprint 5 (video + submit) remaining.
-
----
-
-**🔥 For competition judges:** Start with [docs/WHY-AGENTIC.md](docs/WHY-AGENTIC.md) to understand the core innovation, then review [docs/technical-report-draft.md](docs/technical-report-draft.md) for full technical details.
