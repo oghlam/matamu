@@ -136,6 +136,17 @@ docker-compose.local.yml
 .cache/
 tmp/
 
+# --- LOCAL ONLY (never push to GitHub) ---
+# Personal photos (contain EXIF GPS — privacy)
+docs/IMG_*
+docs/DCIM/
+# Agent session notes (internal working notes, not repo docs)
+docs/gps-pulse-animation.md
+docs/native-like-bottom-navigation.md
+docs/ui-improvements-capture-page.md
+# Local-only trace dumps (tracked evidence traces are unaffected)
+docs/agentic-traces/trace_20260930_132141_245531_published.json
+
 # --- CV OUTPUT (generated, not source) ---
 matamu-cv/data/sidoarjo_out/
 matamu-cv/data/sidoarjo_custom_out/
