@@ -1,6 +1,16 @@
-# Mat(a)Mu - Mata Jalan Masyarakat
+# Mat(a)Mu
 
 > **Agentic Computer Vision** for road damage monitoring via citizen reports
+
+![OpenCV](https://img.shields.io/badge/OpenCV-5-5C3EE8?logo=opencv&logoColor=white)
+![YOLOv11](https://img.shields.io/badge/YOLOv11-Ultralytics-FF6B00)
+![Django](https://img.shields.io/badge/Django-5-092E20?logo=django&logoColor=white)
+![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)
+![MapLibre GL](https://img.shields.io/badge/MapLibre_GL-4-396CB2?logo=maplibre&logoColor=white)
+![PostGIS](https://img.shields.io/badge/PostGIS-16-336791?logo=postgresql&logoColor=white)
+![PWA](https://img.shields.io/badge/PWA-enabled-4CAF50)
 
 ![Mat(a)Mu Logo](docs/logo.png)
 
