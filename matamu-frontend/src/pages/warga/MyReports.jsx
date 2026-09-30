@@ -137,86 +137,127 @@ function ReportCard({ obs, clusterCount = 1, topTrust, firstTime }) {
   // mock:// URLs (old dev data) are not loadable — show placeholder instead
   const hasPhoto = !!obs.evidence_url && !obs.evidence_url.startsWith('mock://')
 
+  // Shorten address: extract street + area only (before first comma or max 50 chars)
+  const shortLocation = (() => {
+    if (!obs.location_label) return 'Unknown location'
+    const label = obs.location_label
+    // Try to get first 2 parts (street + area)
+    const parts = label.split(',').map(p => p.trim())
+    if (parts.length >= 2) {
+      const short = `${parts[0]}, ${parts[1]}`
+      return short.length > 60 ? short.substring(0, 57) + '...' : short
+    }
+    // Fallback: truncate at 50 chars
+    return label.length > 50 ? label.substring(0, 47) + '...' : label
+  })()
+
   return (
-    <div className="bg-surface rounded-xl shadow-card p-4 flex flex-col gap-3">
-      <div className="flex gap-3">
-      {/* Thumbnail */}
-      {hasPhoto ? (
-        <img
-          src={obs.evidence_url}
-          alt="Report photo"
-          className="w-16 h-16 rounded-lg object-cover shrink-0 bg-surface-2"
-        />
-      ) : (
-        <div className="w-16 h-16 rounded-lg bg-surface-2 flex items-center justify-center shrink-0">
-          <FileText size={20} className="text-text-muted" />
+    <div className="bg-surface rounded-xl shadow-card overflow-hidden">
+      {/* Top section: Photo + Info */}
+      <div className="flex gap-3 p-3">
+        {/* Thumbnail */}
+        {hasPhoto ? (
+          <img
+            src={obs.evidence_url}
+            alt="Report photo"
+            className="w-20 h-20 rounded-lg object-cover shrink-0 bg-surface-2"
+          />
+        ) : (
+          <div className="w-20 h-20 rounded-lg bg-surface-2 flex items-center justify-center shrink-0">
+            <FileText size={24} className="text-text-muted" />
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="flex-1 min-w-0 flex flex-col gap-2">
+          {/* Location + Status */}
+          <div className="space-y-1">
+            <p className="text-sm font-bold text-text-primary leading-tight line-clamp-2">
+              {shortLocation}
+            </p>
+            <Badge variant={statusVariant[obs.status] ?? 'muted'}>
+              {STATUS_LABELS[obs.status] ?? obs.status}
+            </Badge>
+          </div>
+
+          {/* Defect info */}
+          <div className="flex items-center gap-2 text-xs">
+            <DefectIcon type={obs.damage_class} size={18} />
+            <div className="flex items-center gap-1.5 text-text-secondary">
+              <span className="font-semibold text-text-primary capitalize">
+                {(obs.damage_class ?? 'Detected').replace(/_/g, ' ')}
+              </span>
+              {obs.severity && (
+                <Badge variant={severityVariant[obs.severity] ?? 'muted'} dot={false}>
+                  {obs.severity}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Trust score */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-text-secondary">Trust</span>
+            <span className="text-sm font-bold text-accent">{Math.round((obs.trust_score ?? 0) * 100)}%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats row - viral cluster */}
+      <div className={`px-3 py-2 text-[11px] flex items-center flex-wrap gap-x-2 gap-y-1 border-t ${isViral ? 'bg-accent/10 border-accent/20' : 'bg-surface-2 border-line'}`}>
+        <span className={isViral ? 'font-bold text-accent' : 'text-text-secondary'}>
+          {clusterCount}× at spot
+        </span>
+        <span className="text-text-muted">•</span>
+        <span className="text-text-secondary">
+          top {Math.round((topTrust ?? obs.trust_score ?? 0) * 100)}%
+        </span>
+        <span className="text-text-muted">•</span>
+        <span className="text-text-secondary">first {firstLabel}</span>
+        {isViral && (
+          <span className="ml-auto text-[10px] font-bold bg-accent text-dark px-2 py-0.5 rounded-full">
+            🔥 Viral
+          </span>
+        )}
+      </div>
+
+      {/* Note (if exists) */}
+      {obs.note && (
+        <div className="px-3 py-2 bg-accent/5 border-t border-accent/10">
+          <p className="text-[11px] text-text-primary italic line-clamp-2">
+            <span className="font-semibold not-italic">Note:</span> {obs.note}
+          </p>
         </div>
       )}
 
-      {/* Content */}
-      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-semibold text-text-primary leading-tight break-words">
-            {obs.location_label ?? 'Unknown location'}
+      {/* Pending reason */}
+      {isPending && obs.review_reason && (
+        <div className="px-3 py-2 bg-warning/10 border-t border-warning/20 flex items-start gap-2">
+          <Clock size={12} className="shrink-0 mt-0.5 text-warning" />
+          <p className="text-[11px] text-warning font-medium">
+            {obs.review_reason}
           </p>
-          <Badge variant={statusVariant[obs.status] ?? 'muted'}>
-            {STATUS_LABELS[obs.status] ?? obs.status}
-          </Badge>
         </div>
+      )}
 
-        <p className="text-xs text-text-secondary break-words flex items-center gap-1.5">
-          <DefectIcon type={obs.damage_class} size={16} />
-          <span className="capitalize">
-            {(obs.damage_class ?? 'Detected').replace(/_/g, ' ')}
-          </span>
-          {obs.severity && <span>· {obs.severity}</span>}
-          {' '}· Trust {Math.round((obs.trust_score ?? 0) * 100)}
-        </p>
-
-        {/* Cluster multiplexer — viral = priority */}
-        <p className={`text-[11px] rounded-lg px-2.5 py-1 break-words flex items-center gap-1.5 ${isViral ? 'bg-accent/15 text-accent font-semibold' : 'bg-surface-2 text-text-secondary'}`}>
-          <span>{clusterCount}× reported at this spot</span>
-          <span>· top trust {Math.round((topTrust ?? obs.trust_score ?? 0) * 100)}</span>
-          <span>· first {firstLabel}</span>
-          {isViral && <span className="ml-auto text-[10px] bg-accent text-dark px-1.5 py-0.5 rounded-full">🔥 Viral</span>}
-        </p>
-        {obs.note && (
-          <p className="text-[11px] text-text-primary bg-accent/10 border-l-2 border-accent rounded px-2.5 py-1.5 break-words italic">
-            Note: {obs.note}
-          </p>
-        )}
-
-        {/* Pending reason — kenapa masuk IQE */}
-        {isPending && obs.review_reason && (
-          <p className="flex items-start gap-1.5 text-[11px] text-warning bg-warning/10 rounded-lg px-2.5 py-1.5 break-words">
-            <Clock size={12} className="shrink-0 mt-0.5" />
-            <span>Pending: {obs.review_reason}</span>
-          </p>
-        )}
-
-        <div className="flex items-center gap-3 mt-auto">
-          <span className="text-xs text-text-muted">{date}</span>
+      {/* Bottom: Date + Coords + Share */}
+      <div className="px-3 py-2 border-t border-line bg-surface-2/50 flex items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-3 text-text-muted">
+          <span className="font-medium">{date}</span>
           {obs.lat && (
-            <span className="flex items-center gap-1 text-xs text-text-muted">
+            <span className="flex items-center gap-1">
               <MapPin size={10} />
               {obs.lat.toFixed(4)}, {obs.lng.toFixed(4)}
             </span>
           )}
-          {obs.severity && (
-            <Badge variant={severityVariant[obs.severity] ?? 'muted'} dot={false}>
-              {obs.severity}
-            </Badge>
-          )}
         </div>
-      </div>
-      </div>
-      {/* Share row */}
-      <div className="pt-1 border-t border-line">
-        <ShareButtons
-          compact
-          title={`${obs.location_label ?? 'Road damage'} — ${obs.damage_class ?? ''}`}
-          path={`/r/${obs.id}`}
-        />
+        <div className="shrink-0">
+          <ShareButtons
+            compact
+            title={`${obs.location_label ?? 'Road damage'} — ${obs.damage_class ?? ''}`}
+            path={`/r/${obs.id}`}
+          />
+        </div>
       </div>
     </div>
   )
