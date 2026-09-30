@@ -1,10 +1,12 @@
 import json
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import Avg, Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from api.storage import delete_evidence
 from observations.models import FollowUp, Observation
 
 
@@ -106,6 +108,19 @@ def observations(request):
         "per_page": per_page,
         "page": "observations",
     })
+
+
+@login_required
+@require_POST
+@permission_required("observations.delete_observation", raise_exception=True)
+def observation_delete(request, pk):
+    """Maintenance delete (Supervisor only): DB row + evidence file."""
+    obs = get_object_or_404(Observation, pk=pk)
+    label = obs.location_label or f"report #{obs.pk}"
+    delete_evidence(obs.evidence_url)
+    obs.delete()  # FollowUp rows cascade
+    messages.success(request, f"Deleted {label} and its photo.")
+    return redirect("dashboard:observations")
 
 
 @login_required

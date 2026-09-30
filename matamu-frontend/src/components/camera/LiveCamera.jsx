@@ -18,7 +18,9 @@ export default function LiveCamera({ onCapture, onCancel }) {
       }
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+          // Portrait-first (phones): 9:16-ish. Desktop webcams fall back to
+          // closest landscape — `ideal` is a preference, not a requirement.
+          video: { facingMode: 'environment', width: { ideal: 720 }, height: { ideal: 1280 } },
           audio: false,
         })
         if (cancelled) {
@@ -90,7 +92,7 @@ export default function LiveCamera({ onCapture, onCancel }) {
           ref={videoRef}
           playsInline
           muted
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-contain bg-dark"
         />
         {/* Scanline — full height sweep */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">

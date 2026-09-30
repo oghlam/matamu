@@ -1,23 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import exifr from 'exifr'
-import { Camera, Send, X, CheckCircle2, AlertCircle, Clock, LogOut, ShieldCheck, ImagePlus, Video } from 'lucide-react'
+import { Camera, Send, X, CheckCircle2, AlertCircle, Clock, LogOut, ShieldCheck, ImagePlus, Video, MapPin, MapPinOff } from 'lucide-react'
 import { useGps } from '../../hooks/useGps'
 import GpsBanner from '../../components/ui/GpsBanner'
 import LiveCamera from '../../components/camera/LiveCamera'
 import { getSession, clearSession, renderGoogleButton, devLogin, GOOGLE_CLIENT_ID } from '../../lib/auth'
 
-// Photos claiming a spot >500m from both EXIF and live GPS are blocked.
-const EXIF_MAX_GAP_KM = 0.5
-
-function haversineKm(aLat, aLng, bLat, bLng) {
-  const R = 6371
-  const dLa = ((bLat - aLat) * Math.PI) / 180
-  const dLo = ((bLng - aLng) * Math.PI) / 180
-  const s =
-    Math.sin(dLa / 2) ** 2 +
-    Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLo / 2) ** 2
-  return 2 * R * Math.asin(Math.sqrt(s))
-}
+// Claim location prefers photo EXIF (gallery) so reports can be filed later
+// from home. Live GPS is fallback when the photo carries no EXIF.
 
 const STATES = {
   idle: 'idle',
@@ -33,6 +23,7 @@ export default function Capture() {
   const [autoLogging, setAutoLogging] = useState(false)
   const [state, setState] = useState(STATES.idle)
   const [photo, setPhoto] = useState(null)   // { file, url }
+  const [claim, setClaim] = useState(null) // { lat, lng, source: 'exif' } or null = use live GPS
   const [note, setNote] = useState('') // free text small note
   const [submitError, setSubmitError] = useState(null)
   const [result, setResult] = useState(null) // { status, trust_score, review_reason, ... }
@@ -89,32 +80,29 @@ export default function Capture() {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
-    // EXIF cross-check (gallery uploads only): photo-embedded GPS must
-    // match live position, otherwise the claim is invalid.
+    // Gallery upload: prefer EXIF GPS as claim location (photo taken on the
+    // road, report filed later from home). Live GPS is only a sanity hint.
     try {
       const exifGps = await exifr.gps(file).catch(() => null)
-      const live = gpsRef.current
-      if (exifGps?.latitude != null && live.gpsOn) {
-        const gap = haversineKm(live.lat, live.lng, exifGps.latitude, exifGps.longitude)
-        if (gap > EXIF_MAX_GAP_KM) {
-          setSubmitError(
-            `This photo was taken ${gap.toFixed(1)} km away from your position. ` +
-            'Use a photo taken at the reported location.'
-          )
-          setState(STATES.error)
-          setPhoto(null)
-          return
-        }
+      if (exifGps?.latitude != null) {
+        setClaim({ lat: exifGps.latitude, lng: exifGps.longitude, source: 'exif' })
+        setSubmitError(null)
+        setPhoto({ file, url: URL.createObjectURL(file) })
+        setState(STATES.preview)
+        return
       }
     } catch {
-      // EXIF unreadable → allow, backend re-checks
+      // EXIF unreadable → fall through to live GPS
     }
+    // No EXIF in photo → fall back to live GPS (must report on-site).
+    setClaim(null)
     setPhoto({ file, url: URL.createObjectURL(file) })
     setState(STATES.preview)
   }
 
   function onCameraCapture(file) {
     setCameraMode(false)
+    setClaim(null) // canvas snapshot has no EXIF → live GPS
     setPhoto({ file, url: URL.createObjectURL(file) })
     setState(STATES.preview)
   }
@@ -122,6 +110,7 @@ export default function Capture() {
   function reset() {
     if (photo?.url) URL.revokeObjectURL(photo.url)
     setPhoto(null)
+    setClaim(null)
     setNote('')
     setSubmitError(null)
     setResult(null)
@@ -129,8 +118,17 @@ export default function Capture() {
   }
 
   async function submit() {
-    if (!gps.gpsOn) {
+    // EXIF claim → report from anywhere (e.g. home). Live fallback → GPS required.
+    const useExif = claim?.source === 'exif'
+    const lat = useExif ? claim.lat : gps.lat
+    const lng = useExif ? claim.lng : gps.lng
+    if (!useExif && !gps.gpsOn) {
       setSubmitError('GPS is required. Turn on location before submitting.')
+      setState(STATES.error)
+      return
+    }
+    if (lat == null || lng == null) {
+      setSubmitError('No location available for this photo.')
       setState(STATES.error)
       return
     }
@@ -140,9 +138,9 @@ export default function Capture() {
       const form = new FormData()
       form.append('file', photo.file)
       const q = new URLSearchParams({
-        lat: gps.lat,
-        lng: gps.lng,
-        ...(gps.accuracy != null && { gps_accuracy: gps.accuracy }),
+        lat,
+        lng,
+        ...(!useExif && gps.accuracy != null && { gps_accuracy: gps.accuracy }),
         ...(note.trim() && { note: note.trim() }),
         id_token: session.id_token,
       }).toString()
@@ -169,42 +167,44 @@ export default function Capture() {
   if (!session) {
     if (autoLogging) {
       return (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 pb-24 md:pb-6">
-          <span className="w-8 h-8 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4 pb-24">
+          <span className="w-10 h-10 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
           <p className="text-sm text-text-secondary">Preparing demo session…</p>
         </div>
       )
     }
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-5 p-6 pb-24 md:pb-6">
-        <div className="w-16 h-16 rounded-2xl bg-surface shadow-card flex items-center justify-center">
-          <ShieldCheck size={32} className="text-text-secondary" strokeWidth={1.5} />
+      <div className="flex-1 flex flex-col items-center justify-center gap-5 p-4 pb-24">
+        <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center">
+          <ShieldCheck size={32} className="text-accent" strokeWidth={1.5} />
         </div>
-        <div className="text-center space-y-1">
-          <h1 className="text-xl font-bold text-text-primary">Sign in to report</h1>
-          <p className="text-sm text-text-secondary max-w-xs">
-            Sign in with your Google account so reports stay verified and abuse-free.
+        <div className="text-center space-y-2 px-4">
+          <h1 className="text-xl font-bold text-text-primary">Welcome to Mat(a)Mu</h1>
+          <p className="text-sm text-text-secondary">
+            Report road damage and help keep our streets safe.
           </p>
         </div>
-        {GOOGLE_CLIENT_ID ? (
-          <div ref={gbtnRef} className="min-h-[44px]" />
-        ) : (
-          <button
-            onClick={handleDevLogin}
-            className="px-6 py-3 rounded-xl bg-dark text-white font-semibold text-sm"
-          >
-            Sign in (Dev Mode)
-          </button>
-        )}
+        <div className="w-full max-w-xs px-4">
+          {GOOGLE_CLIENT_ID ? (
+            <div ref={gbtnRef} className="min-h-[44px] flex justify-center" />
+          ) : (
+            <button
+              onClick={handleDevLogin}
+              className="w-full px-6 py-3 rounded-xl bg-dark text-white font-semibold text-sm active:scale-95 transition-transform"
+            >
+              Sign in (Dev Mode)
+            </button>
+          )}
+        </div>
         {loginError && (
-          <div className="flex items-center gap-2 text-sm text-danger bg-danger/5 px-3 py-2 rounded-lg max-w-xs">
-            <AlertCircle size={14} />
+          <div className="flex items-start gap-2 text-sm text-danger bg-danger/5 border border-danger/20 px-3 py-2 rounded-lg mx-4">
+            <AlertCircle size={14} className="shrink-0 mt-0.5" />
             <span>{loginError.message}</span>
           </div>
         )}
         {!GOOGLE_CLIENT_ID && (
-          <p className="text-[11px] text-text-muted max-w-xs text-center">
-            Dev mode is on (BYPASS_AUTH=1). Set VITE_GOOGLE_CLIENT_ID for real Google sign-in.
+          <p className="text-[11px] text-text-muted text-center px-6">
+            Dev mode (BYPASS_AUTH=1). Set VITE_GOOGLE_CLIENT_ID for real auth.
           </p>
         )}
       </div>
@@ -215,41 +215,54 @@ export default function Capture() {
   if (state === STATES.success && result) {
     const verified = result.status === 'published'
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 pb-24 md:pb-6">
+      <div className="flex-1 flex flex-col items-center justify-center gap-5 p-4 pb-24">
         <div className={[
-          'w-16 h-16 rounded-2xl flex items-center justify-center',
-          verified ? 'bg-success/10' : 'bg-warning/10',
+          'w-20 h-20 rounded-2xl flex items-center justify-center',
+          verified ? 'bg-success/15' : 'bg-warning/15',
         ].join(' ')}>
           {verified
-            ? <CheckCircle2 size={32} className="text-success" />
-            : <Clock size={32} className="text-warning" />}
+            ? <CheckCircle2 size={40} className="text-success" strokeWidth={1.5} />
+            : <Clock size={40} className="text-warning" strokeWidth={1.5} />}
         </div>
-        <div className="text-center space-y-1">
-          <p className="font-semibold text-text-primary text-lg">
-            {verified ? 'Verified — Report Accepted' : 'Pending — Awaiting Review'}
-          </p>
-          <p className="text-sm text-text-secondary">
-            Trust score: {Math.round((result.trust_score ?? 0) * 100)}
-          </p>
-          {!verified && result.review_reason && (
-            <p className="text-xs text-text-secondary bg-surface-2 rounded-lg px-3 py-2 mt-2 max-w-xs">
-              Reason: {result.review_reason}
+        <div className="text-center space-y-3 w-full px-4">
+          <div className="space-y-1">
+            <h2 className="font-bold text-text-primary text-lg">
+              {verified ? 'Report Verified!' : 'Under Review'}
+            </h2>
+            <p className="text-sm text-text-secondary">
+              {verified
+                ? 'Published and visible to operators'
+                : 'Being reviewed, will be published soon'}
             </p>
+          </div>
+          <div className="bg-surface rounded-xl px-4 py-3 border border-line">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-secondary">Trust Score</span>
+              <span className="font-bold text-text-primary text-lg">
+                {Math.round((result.trust_score ?? 0) * 100)}%
+              </span>
+            </div>
+          </div>
+          {!verified && result.review_reason && (
+            <div className="bg-warning/5 border border-warning/20 rounded-lg px-3 py-2 text-left">
+              <p className="text-xs font-semibold text-warning mb-1">Review Reason</p>
+              <p className="text-xs text-text-secondary">{result.review_reason}</p>
+            </div>
           )}
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-2 w-full px-4">
           <button
             onClick={reset}
-            className="px-6 py-2.5 rounded-xl bg-accent text-dark font-semibold text-sm"
+            className="w-full px-6 py-3.5 rounded-xl bg-accent text-dark font-semibold text-sm active:scale-95 transition-transform shadow-card"
           >
-            Report Again
+            Report Another Issue
           </button>
           <button
             onClick={logout}
             aria-label="Sign out"
-            className="px-4 py-2.5 rounded-xl border border-line text-text-secondary text-sm flex items-center gap-1.5"
+            className="w-full px-6 py-3 rounded-xl border-2 border-line text-text-secondary text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform"
           >
-            <LogOut size={14} /> Sign out
+            <LogOut size={16} /> Sign out
           </button>
         </div>
       </div>
@@ -258,101 +271,129 @@ export default function Capture() {
 
   // ── Preview + submit ──
   if (state === STATES.preview || state === STATES.submitting || state === STATES.error) {
-    // Rejected before preview (e.g. EXIF location mismatch) — no photo to show
     if (!photo) {
       return (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 pb-24 md:pb-6 text-center">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 p-4 pb-24 text-center">
           <div className="w-16 h-16 rounded-2xl bg-danger/10 flex items-center justify-center">
-            <AlertCircle size={32} className="text-danger" />
+            <AlertCircle size={32} className="text-danger" strokeWidth={1.5} />
           </div>
-          <p className="text-sm text-text-primary font-medium max-w-xs">{submitError}</p>
+          <div className="space-y-1">
+            <p className="text-base font-bold text-text-primary">Something went wrong</p>
+            <p className="text-sm text-text-secondary">{submitError}</p>
+          </div>
           <button
             onClick={() => { setSubmitError(null); setState(STATES.idle) }}
-            className="px-6 py-2.5 rounded-xl bg-accent text-dark font-semibold text-sm"
+            className="px-6 py-3 rounded-xl bg-accent text-dark font-semibold text-sm active:scale-95 transition-transform"
           >
             Choose Another Photo
           </button>
         </div>
       )
     }
+    const useExif = claim?.source === 'exif'
+    const submitDisabled = state === STATES.submitting || (!useExif && !gps.gpsOn)
     return (
-      <div className="flex-1 flex flex-col p-4 gap-4 pb-24 md:pb-4">
-        {/* Reporter identity */}
-        <div className="flex items-center gap-2 text-xs text-text-secondary">
-          <span className="w-6 h-6 rounded-full bg-accent/15 text-accent flex items-center justify-center font-bold">
-            {(session.name || session.email || '?')[0].toUpperCase()}
-          </span>
-          <span className="truncate">{session.name || session.email}</span>
-          <button onClick={logout} className="ml-auto underline underline-offset-2">Sign out</button>
-        </div>
-
-        {/* Persistent GPS status — always visible */}
-        <GpsBanner gps={gps} />
-
-        {/* Photo preview */}
-        <div className="relative rounded-xl overflow-hidden bg-surface-2 aspect-video max-h-64">
-          <img src={photo.url} alt="Report preview" className="w-full h-full object-cover" />
-          <button
-            onClick={reset}
-            aria-label="Cancel"
-            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-dark/60 flex items-center justify-center text-white"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Free text small note */}
-        <div>
-          <label className="text-xs font-semibold text-text-primary">Add a note <span className="font-normal text-text-muted">(optional)</span></label>
-          <textarea
-            value={note}
-            onChange={e => setNote(e.target.value)}
-            maxLength={500}
-            placeholder="e.g., deep hole near drain, waterlogged after rain"
-            className="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
-            rows={2}
-          />
-          <p className="text-[11px] text-text-muted text-right mt-0.5">{note.length}/500</p>
-        </div>
-
-        {submitError && (
-          <div className="flex items-center gap-2 text-sm text-danger bg-danger/5 px-3 py-2 rounded-lg">
-            <AlertCircle size={14} />
-            <span>{submitError}</span>
+      <div className="flex-1 flex flex-col overflow-y-auto min-h-0">
+        <div className="flex-1 p-3 pb-24 space-y-2">
+          {/* Compact user header */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="w-7 h-7 rounded-full bg-accent/15 text-accent flex items-center justify-center font-bold">
+              {(session.name || session.email || '?')[0].toUpperCase()}
+            </span>
+            <span className="truncate text-text-secondary">{session.name || session.email}</span>
+            <button onClick={logout} className="ml-auto text-text-secondary underline">Sign out</button>
           </div>
-        )}
 
-        {/* Actions */}
-        <div className="flex gap-3 mt-auto">
-          <button
-            onClick={reset}
-            className="flex-1 py-3 rounded-xl border border-line text-text-secondary font-medium text-sm"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={submit}
-            disabled={state === STATES.submitting || !gps.gpsOn}
-            title={!gps.gpsOn ? 'Turn on GPS to submit' : 'Save and submit report'}
-            className="flex-1 py-3 rounded-xl bg-accent text-dark font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
-          >
-            {state === STATES.submitting ? (
-              <>
-                <span className="w-4 h-4 border-2 border-dark/30 border-t-dark rounded-full animate-spin" />
-                Saving…
-              </>
-            ) : (
-              <>
-                <Send size={16} /> Save Report
-              </>
-            )}
-          </button>
+          {/* GPS status */}
+          <GpsBanner gps={gps} />
+
+          {/* Location badge - compact */}
+          {useExif ? (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+              <p className="text-[11px] font-semibold text-emerald-900 flex items-center gap-1.5">
+                <MapPin size={12} className="shrink-0" />
+                Photo GPS: {claim.lat.toFixed(5)}, {claim.lng.toFixed(5)}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <p className="text-[11px] font-semibold text-amber-900 flex items-center gap-1.5">
+                <MapPinOff size={12} className="shrink-0" />
+                Using live GPS — must submit on-site
+              </p>
+            </div>
+          )}
+
+          {/* Photo preview - mobile optimized */}
+          <div className="relative rounded-xl overflow-hidden bg-dark">
+            <img src={photo.url} alt="Preview" className="w-full h-auto max-h-[35vh] object-contain" />
+            <button
+              onClick={reset}
+              aria-label="Cancel"
+              className="absolute top-2 right-2 w-9 h-9 rounded-full bg-dark/70 backdrop-blur-sm flex items-center justify-center text-white active:scale-90 transition-transform"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Note input - compact */}
+          <div className="bg-surface rounded-xl px-3 py-3 border border-line">
+            <label className="block text-xs font-semibold text-text-primary mb-1.5">
+              Add note <span className="font-normal text-text-muted">(optional)</span>
+            </label>
+            <textarea
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              maxLength={500}
+              placeholder="e.g., deep hole, flooded after rain"
+              className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none"
+              rows={3}
+            />
+            <p className="text-[11px] text-text-muted text-right mt-1">{note.length}/500</p>
+          </div>
+
+          {submitError && (
+            <div className="flex items-start gap-2 text-xs text-danger bg-danger/5 border border-danger/20 px-3 py-2 rounded-lg">
+              <AlertCircle size={14} className="shrink-0 mt-0.5" />
+              <span>{submitError}</span>
+            </div>
+          )}
+
+          {!useExif && !gps.gpsOn && (
+            <div className="bg-danger/5 border border-danger/20 rounded-lg px-3 py-2">
+              <p className="text-[11px] text-danger text-center font-medium">
+                GPS required to submit
+              </p>
+            </div>
+          )}
+
+          {/* Action buttons - sticky at bottom on mobile */}
+          <div className="space-y-2 pt-2">
+            <button
+              onClick={submit}
+              disabled={submitDisabled}
+              className="w-full py-3.5 rounded-xl bg-accent text-dark font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 transition-transform shadow-card"
+            >
+              {state === STATES.submitting ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-dark/30 border-t-dark rounded-full animate-spin" />
+                  Submitting…
+                </>
+              ) : (
+                <>
+                  <Send size={16} /> Submit Report
+                </>
+              )}
+            </button>
+            <button
+              onClick={reset}
+              disabled={state === STATES.submitting}
+              className="w-full py-3 rounded-xl border-2 border-line text-text-secondary font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 transition-transform"
+            >
+              <X size={16} /> Cancel
+            </button>
+          </div>
         </div>
-        {!gps.gpsOn && (
-          <p className="text-[11px] text-text-muted text-center -mt-2">
-            Submit is disabled until GPS is active.
-          </p>
-        )}
       </div>
     )
   }
@@ -362,53 +403,84 @@ export default function Capture() {
     return <LiveCamera onCapture={onCameraCapture} onCancel={() => setCameraMode(false)} />
   }
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6 pb-24 md:pb-6">
-      <div className="flex items-center gap-2 text-xs text-text-secondary">
-        <span className="w-6 h-6 rounded-full bg-accent/15 text-accent flex items-center justify-center font-bold">
-          {(session.name || session.email || '?')[0].toUpperCase()}
-        </span>
-        <span className="truncate max-w-[160px]">{session.name || session.email}</span>
-        <button onClick={logout} className="underline underline-offset-2">Sign out</button>
+    <div className="flex-1 flex flex-col overflow-y-auto min-h-0">
+      <div className="flex-1 flex flex-col items-center justify-center gap-5 p-4 pb-24">
+        {/* User badge - compact */}
+        <div className="flex items-center gap-2 bg-surface rounded-xl px-3 py-2.5 border border-line shadow-card w-full max-w-sm">
+          <span className="w-8 h-8 rounded-full bg-accent/15 text-accent flex items-center justify-center font-bold text-sm shrink-0">
+            {(session.name || session.email || '?')[0].toUpperCase()}
+          </span>
+          <span className="text-sm text-text-primary truncate flex-1">{session.name || session.email}</span>
+          <button onClick={logout} className="text-xs text-text-secondary underline shrink-0">Sign out</button>
+        </div>
+
+        {/* GPS status */}
+        <div className="w-full max-w-sm">
+          <GpsBanner gps={gps} />
+        </div>
+
+        {/* Hero - compact */}
+        <div className="text-center space-y-2 px-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent/10 mb-1">
+            <Camera size={32} className="text-accent" strokeWidth={1.5} />
+          </div>
+          <h1 className="text-xl font-bold text-text-primary">Report Road Damage</h1>
+          <p className="text-sm text-text-secondary max-w-sm">
+            Take a photo or choose from gallery. GPS is captured automatically.
+          </p>
+        </div>
+
+        {/* Action cards - mobile optimized */}
+        <div className="flex gap-3 w-full max-w-sm px-4">
+          <button
+            onClick={() => setCameraMode(true)}
+            className="flex-1 rounded-2xl bg-dark text-white shadow-card active:scale-95 transition-transform p-6"
+            aria-label="Take photo with camera"
+          >
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+                <Video size={24} strokeWidth={1.5} />
+              </div>
+              <div className="text-center">
+                <p className="font-bold text-sm">Camera</p>
+                <p className="text-xs text-white/70 mt-0.5">Take now</p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => inputRef.current?.click()}
+            className="flex-1 rounded-2xl bg-surface border-2 border-line shadow-card active:scale-95 transition-transform p-6"
+            aria-label="Choose photo from gallery"
+          >
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center">
+                <ImagePlus size={24} strokeWidth={1.5} className="text-accent" />
+              </div>
+              <div className="text-center">
+                <p className="font-bold text-sm text-text-primary">Gallery</p>
+                <p className="text-xs text-text-secondary mt-0.5">Choose photo</p>
+              </div>
+            </div>
+          </button>
+        </div>
+
+        {/* Helper - compact */}
+        <div className="bg-surface-2 border border-line rounded-lg px-3 py-2 max-w-sm mx-4">
+          <p className="text-[11px] text-text-secondary text-center">
+            <span className="font-semibold text-text-primary">Tip:</span> Enable location in camera settings for delayed reports
+          </p>
+        </div>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          onChange={onFileChange}
+          className="sr-only"
+          aria-label="Choose photo"
+        />
       </div>
-
-      <div className="w-full max-w-xs">
-        <GpsBanner gps={gps} />
-      </div>
-
-      <div className="text-center space-y-1">
-        <h1 className="text-xl font-bold text-text-primary">Report Road Damage</h1>
-        <p className="text-sm text-text-secondary">Take a photo, GPS is automatic, submit.</p>
-      </div>
-
-      <div className="flex gap-4">
-        <button
-          onClick={() => setCameraMode(true)}
-          className="w-28 h-28 rounded-2xl bg-dark text-white shadow-float flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
-          aria-label="Use live camera"
-        >
-          <Video size={32} strokeWidth={1.5} />
-          <span className="text-xs font-semibold">Camera</span>
-        </button>
-        <button
-          onClick={() => inputRef.current?.click()}
-          className="w-28 h-28 rounded-2xl bg-surface shadow-card flex flex-col items-center justify-center gap-2 text-text-secondary hover:bg-surface-2 active:scale-95 transition-transform"
-          aria-label="Upload photo"
-        >
-          <ImagePlus size={32} strokeWidth={1.5} />
-          <span className="text-xs font-semibold">Upload</span>
-        </button>
-      </div>
-
-      <p className="text-xs text-text-muted">Live camera or pick from gallery</p>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        onChange={onFileChange}
-        className="sr-only"
-        aria-label="Choose photo"
-      />
     </div>
   )
 }

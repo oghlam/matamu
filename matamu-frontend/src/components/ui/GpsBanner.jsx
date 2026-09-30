@@ -7,11 +7,23 @@ export default function GpsBanner({ gps, compact = false }) {
 
   if (status === 'on') {
     return (
-      <div className="flex items-center gap-2 text-xs bg-success/10 text-success rounded-lg px-3 py-2">
-        <MapPin size={14} className="shrink-0" />
-        <span>
+      <div className="flex items-center gap-2.5 text-xs bg-success/10 text-success rounded-lg px-3 py-2 relative overflow-visible">
+        <div className="relative shrink-0">
+          {/* Glow ring background */}
+          <div className="absolute inset-0 rounded-full bg-green-500 animate-glow-pulse" style={{ width: '20px', height: '20px', left: '-3px', top: '-3px' }} />
+          {/* Icon */}
+          <MapPin
+            size={14}
+            className="relative z-10 animate-pulse-gps"
+            style={{
+              color: '#22c55e',
+              filter: 'drop-shadow(0 0 4px rgba(34, 197, 94, 0.8))',
+            }}
+          />
+        </div>
+        <span className="font-bold" style={{ color: '#16a34a' }}>
           GPS active
-          {accuracy != null && <span className="opacity-80"> (±{Math.round(accuracy)}m)</span>}
+          {accuracy != null && <span className="opacity-70 font-normal"> (±{Math.round(accuracy)}m)</span>}
         </span>
       </div>
     )

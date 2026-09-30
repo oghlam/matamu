@@ -58,6 +58,42 @@ def upload_evidence(file_path: str | Path, prefix: str = "evidence") -> str:
         return _local_fallback(file_path, key)
 
 
+def delete_evidence(url: str) -> bool:
+    """Remove an evidence file previously returned by upload_evidence.
+
+    Handles local /media/... files and best-effort S3 keys. Returns True
+    if a file was actually removed. Never raises — maintenance delete
+    must not fail just because the file is already gone.
+    """
+    if not url or url.startswith("mock://"):
+        return False
+    try:
+        if url.startswith("/media/"):
+            from django.conf import settings
+
+            target = Path(settings.MEDIA_ROOT) / url[len("/media/"):]
+            # stay inside MEDIA_ROOT
+            if Path(settings.MEDIA_ROOT) not in target.resolve().parents and target.resolve() != Path(settings.MEDIA_ROOT):
+                logger.warning("evidence delete refused (outside MEDIA_ROOT): %s", url)
+                return False
+            if target.is_file():
+                target.unlink()
+                logger.info("evidence deleted locally %s", target)
+                return True
+            return False
+        if url.startswith("http") and f"{S3_BUCKET}." in url:
+            client = _s3()
+            if client is None:
+                return False
+            key = url.split(f"{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/", 1)[-1]
+            client.delete_object(Bucket=S3_BUCKET, Key=key)
+            logger.info("evidence deleted from s3 %s", key)
+            return True
+    except Exception as e:
+        logger.warning("evidence delete failed (%s) — %s", url, e)
+    return False
+
+
 def _local_fallback(file_path: Path, key: str) -> str:
     """Save evidence under MEDIA_ROOT and return a /media/ URL (dev/demo)."""
     import shutil

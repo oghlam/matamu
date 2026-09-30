@@ -40,6 +40,30 @@ export default {
       transitionTimingFunction: {
         spatial: 'cubic-bezier(.2,.8,.2,1)',
       },
+      animation: {
+        'pulse-gps': 'pulse-gps 1.5s ease-in-out infinite',
+        'glow-pulse': 'glow-pulse 1.5s ease-in-out infinite',
+      },
+      keyframes: {
+        'pulse-gps': {
+          '0%, 100%': {
+            opacity: '1',
+            transform: 'scale(1)',
+          },
+          '50%': {
+            opacity: '0.8',
+            transform: 'scale(1.2)',
+          },
+        },
+        'glow-pulse': {
+          '0%, 100%': {
+            boxShadow: '0 0 8px rgba(34, 197, 94, 0.6), 0 0 16px rgba(34, 197, 94, 0.4)',
+          },
+          '50%': {
+            boxShadow: '0 0 16px rgba(34, 197, 94, 0.9), 0 0 24px rgba(34, 197, 94, 0.6), 0 0 32px rgba(34, 197, 94, 0.3)',
+          },
+        },
+      },
     },
   },
   plugins: [],

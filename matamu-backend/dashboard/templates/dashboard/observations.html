@@ -58,6 +58,9 @@
           <th class="px-4 py-3 text-[11px] font-semibold text-tm uppercase tracking-wide whitespace-nowrap">Status</th>
           <th class="px-4 py-3 text-[11px] font-semibold text-tm uppercase tracking-wide whitespace-nowrap">Reporter</th>
           <th class="px-4 py-3 text-[11px] font-semibold text-tm uppercase tracking-wide whitespace-nowrap">Date</th>
+          {% if perms.observations.delete_observation %}
+          <th class="px-4 py-3 text-[11px] font-semibold text-tm uppercase tracking-wide whitespace-nowrap">Action</th>
+          {% endif %}
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-50">
@@ -120,10 +123,18 @@
             {% endif %}
           </td>
           <td class="px-4 py-3 text-xs text-tm whitespace-nowrap">{{ obs.created_at|date:"d M Y" }}</td>
+          {% if perms.observations.delete_observation %}
+          <td class="px-4 py-3 whitespace-nowrap">
+            <form method="post" action="{% url 'dashboard:observation_delete' obs.id %}" onsubmit="return confirm('Delete report #{{ obs.id }} ({{ obs.location_label|default:'no location'|escapejs }})? Its photo will also be removed.')">
+              {% csrf_token %}
+              <button type="submit" class="px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs font-semibold hover:bg-red-100">Delete</button>
+            </form>
+          </td>
+          {% endif %}
         </tr>
         {% empty %}
         <tr>
-          <td colspan="8" class="px-4 py-12 text-center text-ts text-sm">No reports found</td>
+          <td colspan="9" class="px-4 py-12 text-center text-ts text-sm">No reports found</td>
         </tr>
         {% endfor %}
       </tbody>

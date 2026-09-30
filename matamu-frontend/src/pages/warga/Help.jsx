@@ -68,7 +68,7 @@ export default function Help() {
           </div>
         </div>
         <p className="text-[10px] text-text-muted bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 leading-relaxed">
-          Tip: “GPS off/Searching…” → outdoors, High accuracy, Retry. Gallery &gt;500 m EXIF gap → human review.
+          Tip: “GPS off/Searching…” → outdoors, High accuracy, Retry. Gallery photos use the photo location (EXIF) so you can report later from home — keep Save location ON. Photos without EXIF use live GPS.
         </p>
       </section>
 
