@@ -110,6 +110,26 @@ resp = c.post("/api/v1/capture?lat=not_a_number&lng=112.7&id_token=dev",
               data={"file": SimpleUploadedFile("x.jpg", b"fake", "image/jpeg")}, format="multipart")
 check("Invalid lat (non-numeric) rejected", resp.status_code in (400, 422), f"HTTP {resp.status_code}")
 
+# 2d: NaN coords (PWA with GPS off sends "NaN" → float nan) — must be 400, no row
+n_before = Observation.objects.count()
+resp = c.post("/api/v1/capture?lat=NaN&lng=NaN&id_token=dev",
+              data={"file": SimpleUploadedFile("x.jpg", b"fake", "image/jpeg")}, format="multipart")
+check("NaN coords rejected (400)", resp.status_code == 400, f"HTTP {resp.status_code}")
+check("  no row created", Observation.objects.count() == n_before, f"count={Observation.objects.count()}")
+
+# 2e: Out-of-range coords — must be 400, no row
+resp = c.post("/api/v1/capture?lat=999&lng=112.7&id_token=dev",
+              data={"file": SimpleUploadedFile("x.jpg", b"fake", "image/jpeg")}, format="multipart")
+check("Out-of-range lat rejected (400)", resp.status_code == 400, f"HTTP {resp.status_code}")
+
+# 2f: Model clean() rejects NaN (Django admin add/change path)
+from django.core.exceptions import ValidationError
+try:
+    Observation(lat=float("nan"), lng=112.7, detected_class="pothole", confidence=0.5).full_clean()
+    check("Model clean() rejects NaN lat", False, "no error raised")
+except ValidationError:
+    check("Model clean() rejects NaN lat", True)
+
 # ── Test 3: API endpoints ────────────────────────────────────────────────────
 print("\n[3] API endpoints")
 r = c.get("/api/v1/observations")
@@ -134,7 +154,7 @@ detail = r.json()
 check("  detail has faces_blurred", "faces_blurred" in detail)
 check("  detail has all_detections", "all_detections" in detail)
 
-# 2d: nearby endpoint
+# 2g: nearby endpoint
 r = c.get(f"/api/v1/observations/nearby?lat=-7.4521&lng=112.7175&radius_m=500")
 check("GET /nearby 200", r.status_code == 200)
 

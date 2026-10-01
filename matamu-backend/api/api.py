@@ -1,5 +1,6 @@
 """Mat(a)Mu API — Django Ninja endpoints."""
 import logging
+import math
 import tempfile
 import os
 import time
@@ -39,6 +40,11 @@ def _check_rate(key: str, limit: int = RATE_LIMIT) -> bool:
         return False
     _rate_store[key].append(now)
     return True
+
+
+def _valid_coord(v, lo: float, hi: float) -> bool:
+    """Finite number within [lo, hi]. Rejects NaN/Infinity/out-of-range."""
+    return isinstance(v, (int, float)) and math.isfinite(v) and lo <= v <= hi
 
 
 # ── Health ──────────────────────────────────────────────────────────────────
@@ -150,6 +156,13 @@ def capture(request, lat: float, lng: float,
     Requires Google sign-in (id_token). Bots without a verified Google
     identity are rejected with 401.
     """
+    # 0. GPS sanity gate — before quota, auth, CV, or S3 work. The PWA sends
+    # "NaN" when GPS is off; Ninja parses it into float nan, which Postgres
+    # stores as NaN and breaks JSON downstream. (0,0) stays allowed (fallback).
+    if not (_valid_coord(lat, -90.0, 90.0) and _valid_coord(lng, -180.0, 180.0)):
+        return api.create_response(request, {"error": "Invalid GPS coordinates. Enable location services and retry."}, status=400)
+    if gps_accuracy is not None and not math.isfinite(gps_accuracy):
+        gps_accuracy = None
     ip = request.META.get("REMOTE_ADDR", "unknown")
     if not BYPASS_AUTH and not _check_rate("ip:" + ip):
         return api.create_response(request, {"error": "Rate limit exceeded. Max 10 captures per minute."}, status=429)

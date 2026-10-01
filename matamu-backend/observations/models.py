@@ -1,3 +1,6 @@
+import math
+
+from django.core.exceptions import ValidationError
 from django.db import models
 
 class Observation(models.Model):
@@ -37,6 +40,18 @@ class Observation(models.Model):
         permissions = [
             ("can_moderate_iqe", "Can accept/reject IQE queue (supervisor)"),
         ]
+
+    def clean(self):
+        # Reject NaN/Infinity/out-of-range coords. Covers Django admin
+        # add/change (ModelForm → full_clean). The API capture endpoint has
+        # its own gate returning HTTP 400 — this is the last line of defense.
+        # (0,0) stays allowed: zero-GPS fallback is a supported flow.
+        for name, lo, hi in (("lat", -90.0, 90.0), ("lng", -180.0, 180.0)):
+            v = getattr(self, name)
+            if not isinstance(v, (int, float)) or not math.isfinite(v):
+                raise ValidationError({name: "Must be a finite number."})
+            if not (lo <= v <= hi):
+                raise ValidationError({name: f"Must be between {lo} and {hi}."})
 
     def __str__(self):
         return f"{self.detected_class} {self.trust_score:.2f} {self.status}"

@@ -30,7 +30,7 @@ Sprint 0–4 selesai lokal + **24 Sep Map 3D + Traffic + PowerUp + Base map Ion*
 start-dev.bat                                   # jalankan backend + PWA sekaligus
 cd matamu-backend && venv\Scripts\python.exe manage.py seed_roles   # (sekali saja) grup Operator/Supervisor
 venv\Scripts\python.exe docs/agentic_scenario_runner.py             # harap 4/4 PASS
-venv\Scripts\python.exe docs/integration_test.py                    # harap 42/42 PASS
+venv\Scripts\python.exe docs/integration_test.py                    # harap 46/46 PASS
 ```
 > Catatan Windows: output Python non-ASCII butuh `$env:PYTHONIOENCODING="utf-8"`. Jangan print panah `→`/emoji ke console (cp1252 crash).
 
