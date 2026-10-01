@@ -229,7 +229,10 @@ function capFirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : '—'
 
 // Esri World Imagery + place & road labels — free, no API key
 // (attribution required, shown automatically)
-const LIGHT = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+// OpenFreeMap Bright — OSM planet data, OSM-Standard look (yellow
+// arterials, labeled minor roads), free for public sites, no key.
+// (attribution: © OpenStreetMap contributors © OpenMapTiles, automatic)
+const LIGHT = 'https://tiles.openfreemap.org/styles/bright';
 const ESRI_ATTR = 'Esri, Maxar, Earthstar Geographics';
 const SAT = {
   version: 8,

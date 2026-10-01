@@ -25,8 +25,8 @@ const BUILDING_SOURCE = {
   maxzoom: 14,
 }
 
-// Base maps — Light (Carto) + Satellite (Esri) + Ion Bing (when PowerUp key exists)
-const LIGHT_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
+// Base maps — Light (OpenFreeMap Bright: OSM-Standard look, no key) + Satellite (Esri) + Ion Bing (when PowerUp key exists)
+const LIGHT_STYLE = 'https://tiles.openfreemap.org/styles/bright'
 const SAT_STYLE = {
   version: 8,
   sources: {

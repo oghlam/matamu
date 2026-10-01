@@ -3,7 +3,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 // Same free basemap as PublicMap (no API key needed)
-const LIGHT_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
+const LIGHT_STYLE = 'https://tiles.openfreemap.org/styles/bright'
 
 /**
  * LocationPicker - mini map with draggable pin.
@@ -28,7 +28,7 @@ export default function LocationPicker({ initialLat, initialLng, onChange }) {
       style: LIGHT_STYLE,
       center: [initialLng, initialLat],
       zoom: 16,
-      attributionControl: false,
+      attributionControl: { compact: true },
     })
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
 
