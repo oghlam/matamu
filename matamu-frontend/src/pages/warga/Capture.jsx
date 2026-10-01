@@ -84,7 +84,8 @@ export default function Capture() {
     // road, report filed later from home). Live GPS is only a sanity hint.
     try {
       const exifGps = await exifr.gps(file).catch(() => null)
-      if (exifGps?.latitude != null) {
+      // Corrupt GPS tags parse to NaN (NaN != null is true!) — require finite.
+      if (Number.isFinite(exifGps?.latitude) && Number.isFinite(exifGps?.longitude)) {
         setClaim({ lat: exifGps.latitude, lng: exifGps.longitude, source: 'exif' })
         setSubmitError(null)
         setPhoto({ file, url: URL.createObjectURL(file) })
