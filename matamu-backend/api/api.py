@@ -13,7 +13,7 @@ from django.utils import timezone
 from observations.models import Observation, FollowUp
 
 from .cv_pipeline import run_cv, blur_faces_for, get_exif_gps, haversine_km
-from .storage import upload_evidence
+from .storage import upload_evidence, downscale_image
 from .llm import haiku_summary, sonnet_severity, haiku_dedup_hint
 # backward compat: gemini_severity alias still available in llm.py
 from .geocoding import reverse_geocode
@@ -190,6 +190,10 @@ def capture(request, lat: float, lng: float,
             exif_flag = f"Photo location (EXIF) is {gap:.1f} km from reported position."
             logger.warning("capture: EXIF mismatch %.1f km (claimed %s,%s vs exif %s,%s)",
                            gap, lat, lng, exif_gps[0], exif_gps[1])
+
+    # 1c. Shrink huge phone photos before CV/blur/upload (bbox stays valid:
+    # everything downstream sees the same downscaled pixels).
+    downscale_image(tmp_path)
 
     try:
         # 2. CV pipeline (YOLO + IQE)

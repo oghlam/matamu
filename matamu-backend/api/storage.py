@@ -94,6 +94,29 @@ def delete_evidence(url: str) -> bool:
     return False
 
 
+def downscale_image(file_path: str | Path, max_dim: int = 1280) -> None:
+    """Shrink a photo so its longest side is <= max_dim (in place, JPEG).
+
+    Capture calls this BEFORE CV runs, so YOLO bboxes, SFace blur, and the
+    stored evidence all see the same pixels — overlay math stays valid.
+    A 4032px phone photo becomes ~300KB instead of ~4MB. Skips small
+    images. Never raises (falls back to the original on any error).
+    """
+    try:
+        from PIL import Image, ImageOps
+
+        p = Path(file_path)
+        img = ImageOps.exif_transpose(Image.open(p))
+        if max(img.size) <= max_dim:
+            return
+        img = img.convert("RGB")
+        img.thumbnail((max_dim, max_dim), Image.LANCZOS)
+        img.save(p, "JPEG", quality=82)
+        logger.info("downscaled %s to %s", p.name, img.size)
+    except Exception as e:
+        logger.warning("downscale skipped (%s) — using original", e)
+
+
 def _local_fallback(file_path: Path, key: str) -> str:
     """Save evidence under MEDIA_ROOT and return a /media/ URL (dev/demo)."""
     import shutil
