@@ -7,6 +7,7 @@ import { useObservations } from '../../hooks/useObservations'
 import { useGps } from '../../hooks/useGps'
 import GpsBanner from '../../components/ui/GpsBanner'
 import roadsFallback from '../../lib/roadsFallback.json'
+import { photoUrl } from '../../lib/api'
 
 // Free DEM (MapLibre demo, terrarium encoding) + OpenFreeMap vector for buildings — no API key
 const TERRAIN_SOURCE_ID = 'terrain-dem'
@@ -612,7 +613,7 @@ export default function PublicMap() {
         const popup = new maplibregl.Popup({ offset: 12, closeButton: false, maxWidth: '270px' })
           .setHTML(`
             <div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.4;min-width:200px;max-width:260px">
-              ${obs.evidence_url ? `<img src="${obs.evidence_url}" alt="Damage photo" loading="lazy" style="width:100%;height:90px;object-fit:cover;border-radius:8px;display:block" />` : `<div style="width:100%;height:60px;border-radius:8px;background:#F1F2ED;display:flex;align-items:center;justify-content:center;color:#949893;font-size:10px">No photo</div>`}
+              ${obs.evidence_url ? `<img src="${photoUrl(obs.evidence_url)}" alt="Damage photo" loading="lazy" style="width:100%;height:90px;object-fit:cover;border-radius:8px;display:block" />` : `<div style="width:100%;height:60px;border-radius:8px;background:#F1F2ED;display:flex;align-items:center;justify-content:center;color:#949893;font-size:10px">No photo</div>`}
               <hr style="margin:6px 0;border:none;border-top:1px solid #E8E8E0" />
               <p style="margin:0;color:#111311;font-weight:700;font-size:11px;line-height:1.3;word-break:break-word">${obs.location_label ?? obs.location ?? 'Unknown location'}</p>
               <hr style="margin:6px 0;border:none;border-top:1px solid #E8E8E0" />

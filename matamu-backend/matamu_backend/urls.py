@@ -15,11 +15,11 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import JsonResponse
 from django.shortcuts import redirect
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve
 
 from api.api import api as ninja_api
 from api.overpass_proxy import overpass_proxy
@@ -38,5 +38,7 @@ urlpatterns = [
     path("dashboard/", include("dashboard.urls")),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve evidence photos in all envs (demo has no separate media server;
+# static() helper returns [] when DEBUG=False, so wire serve directly.
+# ponytail: Django-served media is enough, use S3+CDN when traffic grows).
+urlpatterns += [re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT})]

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { MapPin, ArrowLeft, Flame } from 'lucide-react'
-import { api } from '../../lib/api'
+import { api, photoUrl } from '../../lib/api'
 import Badge, { severityVariant } from '../../components/ui/Badge'
 import DefectIcon from '../../components/ui/DefectIcon'
 import ShareButtons from '../../components/ui/ShareButtons'
@@ -62,7 +62,7 @@ export default function ReportDetail() {
         {obs && (
           <div className="bg-surface rounded-xl shadow-card overflow-hidden">
             {obs.evidence_url && (
-              <img src={obs.evidence_url} alt="Damage photo" className="w-full max-h-72 object-cover" />
+              <img src={photoUrl(obs.evidence_url)} alt="Damage photo" className="w-full max-h-72 object-cover" />
             )}
             <div className="p-4 space-y-3">
               <div className="flex items-start justify-between gap-2">

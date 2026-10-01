@@ -18,3 +18,12 @@ async function post(path, body) {
 }
 
 export const api = { get, post }
+
+// Resolve evidence photo URL: absolute/http + mock pass through,
+// relative /media/... prefixed with API base so split-domain
+// deploys (PWA ≠ API host) still load. Same-origin dev: BASE='' → unchanged.
+export function photoUrl(url) {
+  if (!url || url.startsWith('http') || url.startsWith('mock://') || url.startsWith('data:') || url.startsWith('blob:')) return url
+  if (url.startsWith('/')) return `${BASE}${url}`
+  return `${BASE}/${url}`
+}

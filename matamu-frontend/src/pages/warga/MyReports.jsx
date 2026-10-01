@@ -7,6 +7,7 @@ import ShareButtons from '../../components/ui/ShareButtons'
 import { SkeletonCard } from '../../components/ui/Skeleton'
 import { EmptyState, ErrorState } from '../../components/ui/States'
 import { getSession, clearSession, renderGoogleButton, devLogin, GOOGLE_CLIENT_ID } from '../../lib/auth'
+import { photoUrl } from '../../lib/api'
 
 const STATUS_LABELS = {
   published: 'Published',
@@ -158,7 +159,7 @@ function ReportCard({ obs, clusterCount = 1, topTrust, firstTime }) {
         {/* Thumbnail */}
         {hasPhoto ? (
           <img
-            src={obs.evidence_url}
+            src={photoUrl(obs.evidence_url)}
             alt="Report photo"
             className="w-20 h-20 rounded-lg object-cover shrink-0 bg-surface-2"
           />
