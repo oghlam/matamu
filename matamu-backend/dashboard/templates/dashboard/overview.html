@@ -657,7 +657,7 @@ function renderMarkers() {
   const base = "{% url 'dashboard:observations' %}";
   document.getElementById('list-link').href = params.toString() ? base + '?' + params.toString() : base;
   rows.forEach(o => {
-    if (o.lat == null || o.lng == null) return;
+    if (!Number.isFinite(o.lat) || !Number.isFinite(o.lng)) return;
     const el = document.createElement('div');
     el.addEventListener('click', (e) => { e.stopPropagation(); activeId = o.id; paintActive(); selectObs(o); openDirTip(o); });
     const m = new maplibregl.Marker({ element: el }).setLngLat([o.lng, o.lat]).addTo(map);
@@ -886,8 +886,8 @@ function hideDashPreload(){
 });
 
 map.on('load', () => {
-  if (ALL.length) activeId = ALL[0].id;   // sync with server-rendered focus card
-  const f = ALL.find(r => r.id === activeId);
+  const f = ALL.find(r => Number.isFinite(r.lat) && Number.isFinite(r.lng));   // sync with server-rendered focus card; skip coord-less rows
+  if (f) activeId = f.id;
   currentBoxes = (f && f.all_detections) || [];
   evToggle.style.display = currentBoxes.length ? '' : 'none';
   if (f) { paintZone('bar-trust', f.trust_score, TRUST_GATES); paintZone('bar-conf', f.confidence, CONF_GATES); }

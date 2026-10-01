@@ -1,4 +1,5 @@
 import json
+import math
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
@@ -8,6 +9,23 @@ from django.views.decorators.http import require_POST
 
 from api.storage import delete_evidence
 from observations.models import FollowUp, Observation
+
+
+def _json_safe(value):
+    """Recursively replace NaN/Infinity floats with None (valid JSON).
+
+    Postgres float columns preserve NaN (unlike SQLite, which stores it
+    as NULL) — and json.dumps emits a bare NaN token that JSON.parse
+    rejects, killing the whole overview map. allow_nan=False below turns
+    any future leak into a loud server error instead of a broken page.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
 
 
 def _base_stats():
@@ -39,16 +57,24 @@ def overview(request):
                 "location_label", "trust_score", "confidence", "created_at",
                 "evidence_url", "all_detections")
     )
-    # JSON-serialize for JS (datetime → isoformat)
+    # JSON-serialize for JS (datetime → isoformat, NaN/Inf → None)
     for r in map_rows:
         if r.get("created_at"):
             r["created_at"] = r["created_at"].isoformat()
-    # focus = most recent published → Location detail card
-    focus_obs = (
-        Observation.objects.filter(status="published")
-        .order_by("-created_at")
-        .first()
-    )
+    map_rows = _json_safe(map_rows)
+    # focus = most recent published WITH valid coords → Location detail card
+    # (a NaN-coord row must never become the card: it renders "nan,nan")
+    focus_obs = None
+    for r in map_rows:
+        if r.get("lat") is not None and r.get("lng") is not None:
+            focus_obs = Observation.objects.filter(pk=r["id"]).first()
+            break
+    if focus_obs is None:
+        focus_obs = (
+            Observation.objects.filter(status="published")
+            .order_by("-created_at")
+            .first()
+        )
     # severity distribution for arc card
     pub = Observation.objects.filter(status="published")
     sev_high = pub.filter(severity__in=["high", "severe", "critical"]).count()
@@ -60,7 +86,7 @@ def overview(request):
     arc_mid_end = round((sev_high + sev_mid) / denom * 100)
     return render(request, "dashboard/overview.html", {
         "stats": stats,
-        "map_obs_json": json.dumps(map_rows),
+        "map_obs_json": json.dumps(map_rows, allow_nan=False),
         "focus_obs": focus_obs,
         "sev_high": sev_high,
         "sev_mid": sev_mid,
