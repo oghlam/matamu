@@ -4,10 +4,86 @@ import { Camera, Send, X, CheckCircle2, AlertCircle, Clock, LogOut, ShieldCheck,
 import { useGps } from '../../hooks/useGps'
 import GpsBanner from '../../components/ui/GpsBanner'
 import LiveCamera from '../../components/camera/LiveCamera'
+import LocationPicker from '../../components/location/LocationPicker'
 import { getSession, clearSession, renderGoogleButton, devLogin, GOOGLE_CLIENT_ID } from '../../lib/auth'
+
+// Apply GPS watermark badge to photo before submission
+async function applyGpsWatermark(imageFile, lat, lng) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      canvas.width = img.width
+      canvas.height = img.height
+
+      // Draw original image
+      ctx.drawImage(img, 0, 0)
+
+      // Prepare watermark text
+      const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ')
+      const gpsText = `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`
+      const timeText = timestamp
+
+      // Badge style
+      const padding = 12
+      const lineHeight = 20
+      const fontSize = 14
+      ctx.font = `bold ${fontSize}px 'JetBrains Mono', monospace`
+
+      // Measure text width
+      const gpsWidth = ctx.measureText(gpsText).width
+      const timeWidth = ctx.measureText(timeText).width
+      const badgeWidth = Math.max(gpsWidth, timeWidth) + padding * 2
+      const badgeHeight = lineHeight * 2 + padding * 2
+
+      // Position: bottom-center with 12px margin
+      const x = (canvas.width - badgeWidth) / 2
+      const y = canvas.height - badgeHeight - 12
+
+      // Draw badge background (dark semi-transparent)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'
+      // Manual rounded rectangle (roundRect not widely supported yet)
+      const radius = 8
+      ctx.beginPath()
+      ctx.moveTo(x + radius, y)
+      ctx.lineTo(x + badgeWidth - radius, y)
+      ctx.arcTo(x + badgeWidth, y, x + badgeWidth, y + radius, radius)
+      ctx.lineTo(x + badgeWidth, y + badgeHeight - radius)
+      ctx.arcTo(x + badgeWidth, y + badgeHeight, x + badgeWidth - radius, y + badgeHeight, radius)
+      ctx.lineTo(x + radius, y + badgeHeight)
+      ctx.arcTo(x, y + badgeHeight, x, y + badgeHeight - radius, radius)
+      ctx.lineTo(x, y + radius)
+      ctx.arcTo(x, y, x + radius, y, radius)
+      ctx.closePath()
+      ctx.fill()
+
+      // Draw text (white)
+      ctx.fillStyle = '#ffffff'
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'top'
+      ctx.fillText(gpsText, x + padding, y + padding)
+      ctx.fillText(timeText, x + padding, y + padding + lineHeight)
+
+      // Convert to blob
+      canvas.toBlob(blob => {
+        if (blob) {
+          resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }))
+        } else {
+          reject(new Error('Canvas to blob conversion failed'))
+        }
+      }, 'image/jpeg', 0.92)
+    }
+    img.onerror = () => reject(new Error('Image load failed'))
+    img.src = URL.createObjectURL(imageFile)
+  })
+}
 
 // Claim location prefers photo EXIF (gallery) so reports can be filed later
 // from home. Live GPS is fallback when the photo carries no EXIF.
+// Sidoarjo center is last resort when GPS is off (user must adjust pin).
+
+const FALLBACK_CENTER = { lat: -7.447, lng: 112.718 }
 
 const STATES = {
   idle: 'idle',
@@ -23,10 +99,12 @@ export default function Capture() {
   const [autoLogging, setAutoLogging] = useState(false)
   const [state, setState] = useState(STATES.idle)
   const [photo, setPhoto] = useState(null)   // { file, url }
-  const [claim, setClaim] = useState(null) // { lat, lng, source: 'exif' } or null = use live GPS
+  const [pinPosition, setPinPosition] = useState(null) // { lat, lng, source: 'exif'|'live'|'fallback', adjusted } — adjustable via mini map
+  const [mapKey, setMapKey] = useState(0) // bump to remount LocationPicker on reset
   const [note, setNote] = useState('') // free text small note
   const [submitError, setSubmitError] = useState(null)
   const [result, setResult] = useState(null) // { status, trust_score, review_reason, ... }
+  const [exifDebug, setExifDebug] = useState(null) // Debug info for EXIF reading
   const [cameraMode, setCameraMode] = useState(false)
   const inputRef = useRef(null)
   const gbtnRef = useRef(null)
@@ -80,38 +158,82 @@ export default function Capture() {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
-    // Gallery upload: prefer EXIF GPS as claim location (photo taken on the
-    // road, report filed later from home). Live GPS is only a sanity hint.
-    try {
-      const exifGps = await exifr.gps(file).catch(() => null)
-      // Corrupt GPS tags parse to NaN (NaN != null is true!) — require finite.
-      if (Number.isFinite(exifGps?.latitude) && Number.isFinite(exifGps?.longitude)) {
-        setClaim({ lat: exifGps.latitude, lng: exifGps.longitude, source: 'exif' })
-        setSubmitError(null)
-        setPhoto({ file, url: URL.createObjectURL(file) })
-        setState(STATES.preview)
-        return
-      }
-    } catch {
-      // EXIF unreadable → fall through to live GPS
+
+    // Claim location prefers photo EXIF (gallery) so reports can be filed
+    // later from home. Live GPS is fallback when the photo carries no EXIF.
+    const debugInfo = {
+      file: `${file.name} (${(file.size / 1024).toFixed(1)}KB)`,
+      type: file.type,
+      browser: navigator.userAgent.includes('Chrome') ? 'Chrome' : navigator.userAgent.includes('Safari') ? 'Safari' : 'Other',
     }
-    // No EXIF in photo → fall back to live GPS (must report on-site).
-    setClaim(null)
+    let exifLat = null
+    let exifLng = null
+    try {
+      const exifGps = await exifr.gps(file).catch(err => {
+        debugInfo.error = err.message
+        return null
+      })
+
+      debugInfo.gpsResult = exifGps ? `lat=${exifGps.latitude?.toFixed(5)}, lng=${exifGps.longitude?.toFixed(5)}` : 'null'
+      debugInfo.latFinite = Number.isFinite(exifGps?.latitude)
+      debugInfo.lngFinite = Number.isFinite(exifGps?.longitude)
+
+      if (Number.isFinite(exifGps?.latitude) && Number.isFinite(exifGps?.longitude)) {
+        exifLat = exifGps.latitude
+        exifLng = exifGps.longitude
+        debugInfo.status = 'EXIF GPS detected (used as default pin)'
+      } else {
+        debugInfo.status = 'No GPS in EXIF (OS privacy protection)'
+      }
+      setExifDebug(debugInfo)
+    } catch (err) {
+      debugInfo.status = 'Exception: ' + err.message
+      setExifDebug(debugInfo)
+    }
+
+    // Default pin: EXIF > live GPS > Sidoarjo fallback. User can adjust on mini map.
+    const live = gpsRef.current
+    if (exifLat != null && exifLng != null) {
+      setPinPosition({ lat: exifLat, lng: exifLng, source: 'exif', adjusted: false })
+    } else if (live.lat != null && live.lng != null) {
+      setPinPosition({ lat: live.lat, lng: live.lng, source: 'live', adjusted: false })
+    } else {
+      setPinPosition({ lat: FALLBACK_CENTER.lat, lng: FALLBACK_CENTER.lng, source: 'fallback', adjusted: false })
+    }
     setPhoto({ file, url: URL.createObjectURL(file) })
     setState(STATES.preview)
   }
 
   function onCameraCapture(file) {
     setCameraMode(false)
-    setClaim(null) // canvas snapshot has no EXIF → live GPS
+    // Canvas snapshot has no EXIF → live GPS, Sidoarjo fallback when GPS off
+    const live = gpsRef.current
+    if (live.lat != null && live.lng != null) {
+      setPinPosition({ lat: live.lat, lng: live.lng, source: 'live', adjusted: false })
+    } else {
+      setPinPosition({ lat: FALLBACK_CENTER.lat, lng: FALLBACK_CENTER.lng, source: 'fallback', adjusted: false })
+    }
     setPhoto({ file, url: URL.createObjectURL(file) })
     setState(STATES.preview)
+  }
+
+  function handlePinMove({ lat, lng }) {
+    setPinPosition(prev => (prev ? { ...prev, lat, lng, adjusted: true } : { lat, lng, source: 'live', adjusted: true }))
+  }
+
+  function resetPinToCurrentGPS() {
+    const live = gpsRef.current
+    if (live.lat != null && live.lng != null) {
+      setPinPosition({ lat: live.lat, lng: live.lng, source: 'live', adjusted: false })
+      setMapKey(k => k + 1) // remount map centered on live GPS
+    }
   }
 
   function reset() {
     if (photo?.url) URL.revokeObjectURL(photo.url)
     setPhoto(null)
-    setClaim(null)
+    setPinPosition(null)
+    setMapKey(0)
     setNote('')
     setSubmitError(null)
     setResult(null)
@@ -119,11 +241,11 @@ export default function Capture() {
   }
 
   async function submit() {
-    // EXIF claim → report from anywhere (e.g. home). Live fallback → GPS required.
-    const useExif = claim?.source === 'exif'
-    const lat = useExif ? claim.lat : gps.lat
-    const lng = useExif ? claim.lng : gps.lng
-    if (!useExif && !gps.gpsOn) {
+    // Adjusted pin position (not live GPS directly). GPS stays required
+    // per project policy — pin adjust only corrects an inaccurate fix.
+    const lat = pinPosition?.lat
+    const lng = pinPosition?.lng
+    if (!gps.gpsOn) {
       setSubmitError('GPS is required. Turn on location before submitting.')
       setState(STATES.error)
       return
@@ -136,12 +258,15 @@ export default function Capture() {
     setState(STATES.submitting)
     setSubmitError(null)
     try {
+      // Apply GPS watermark badge before upload
+      const watermarkedFile = await applyGpsWatermark(photo.file, lat, lng)
+
       const form = new FormData()
-      form.append('file', photo.file)
+      form.append('file', watermarkedFile)
       const q = new URLSearchParams({
         lat,
         lng,
-        ...(!useExif && gps.accuracy != null && { gps_accuracy: gps.accuracy }),
+        ...(gps.accuracy != null && { gps_accuracy: gps.accuracy }),
         ...(note.trim() && { note: note.trim() }),
         id_token: session.id_token,
       }).toString()
@@ -291,8 +416,7 @@ export default function Capture() {
         </div>
       )
     }
-    const useExif = claim?.source === 'exif'
-    const submitDisabled = state === STATES.submitting || (!useExif && !gps.gpsOn)
+    const submitDisabled = state === STATES.submitting || !gps.gpsOn
     return (
       <div className="flex-1 flex flex-col overflow-y-auto min-h-0">
         <div className="flex-1 p-3 pb-24 space-y-2">
@@ -308,21 +432,56 @@ export default function Capture() {
           {/* GPS status */}
           <GpsBanner gps={gps} />
 
-          {/* Location badge - compact */}
-          {useExif ? (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-              <p className="text-[11px] font-semibold text-emerald-900 flex items-center gap-1.5">
-                <MapPin size={12} className="shrink-0" />
-                Photo GPS: {claim.lat.toFixed(5)}, {claim.lng.toFixed(5)}
-              </p>
+          {/* Adjustable report location */}
+          <div className="bg-surface rounded-xl p-3 border border-line space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                <MapPin size={14} className="shrink-0" />
+                Adjust Report Location
+              </label>
+              {gps.gpsOn && (
+                <button
+                  onClick={resetPinToCurrentGPS}
+                  className="text-xs text-accent underline active:opacity-70"
+                >
+                  Reset to GPS
+                </button>
+              )}
             </div>
-          ) : (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              <p className="text-[11px] font-semibold text-amber-900 flex items-center gap-1.5">
-                <MapPinOff size={12} className="shrink-0" />
-                Using live GPS — must submit on-site
-              </p>
-            </div>
+
+            {pinPosition && (
+              <LocationPicker
+                key={mapKey}
+                initialLat={pinPosition.lat}
+                initialLng={pinPosition.lng}
+                onChange={handlePinMove}
+              />
+            )}
+
+            <p className="text-[11px] font-semibold text-text-secondary flex items-center gap-1.5 font-mono">
+              <MapPin size={12} className="shrink-0" />
+              {pinPosition ? `${pinPosition.lat.toFixed(6)}, ${pinPosition.lng.toFixed(6)}` : 'Locating…'}
+              {pinPosition?.adjusted && <span className="font-sans font-normal text-text-muted">(adjusted)</span>}
+            </p>
+            <p className="text-[11px] text-text-muted">
+              Drag the red pin or tap the map to place it where the photo was taken. This location is stamped on the photo watermark.
+            </p>
+          </div>
+
+          {/* EXIF Debug Info (visible when exifDebug is set) */}
+          {exifDebug && (
+            <details className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-[10px] font-mono">
+              <summary className="font-bold text-blue-900 cursor-pointer">EXIF Debug Info (tap to expand)</summary>
+              <div className="mt-2 space-y-1 text-blue-800">
+                <div><strong>File:</strong> {exifDebug.file}</div>
+                <div><strong>Type:</strong> {exifDebug.type}</div>
+                <div><strong>Browser:</strong> {exifDebug.browser}</div>
+                <div><strong>GPS Result:</strong> {exifDebug.gpsResult}</div>
+                <div><strong>Finite Check:</strong> lat={exifDebug.latFinite?.toString()}, lng={exifDebug.lngFinite?.toString()}</div>
+                <div><strong>Status:</strong> {exifDebug.status}</div>
+                {exifDebug.error && <div className="text-red-700"><strong>Error:</strong> {exifDebug.error}</div>}
+              </div>
+            </details>
           )}
 
           {/* Photo preview - mobile optimized */}
@@ -360,7 +519,7 @@ export default function Capture() {
             </div>
           )}
 
-          {!useExif && !gps.gpsOn && (
+          {!gps.gpsOn && (
             <div className="bg-danger/5 border border-danger/20 rounded-lg px-3 py-2">
               <p className="text-[11px] text-danger text-center font-medium">
                 GPS required to submit
