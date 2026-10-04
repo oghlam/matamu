@@ -648,19 +648,17 @@ export default function PublicMap() {
   }, [observations, heatmap, is3D, zoom])
 
   const myLocationRef = useRef(null)
+  const autoCenteredRef = useRef(false)
   const locateMe = useCallback(() => {
     const showMyPin = (lng, lat) => {
       const map = mapRef.current
       if (!map) return
       map.flyTo({ center: [lng, lat], zoom: 15 })
-      // pin marker — blue dot with white border + pulse
+      // pin marker — red teardrop (gmaps-style) with white "!" + pulse
       if (myLocationRef.current) { try { myLocationRef.current.remove() } catch {} }
       const el = document.createElement('div')
-      el.style.cssText = 'width:16px;height:16px;border-radius:50%;background:#4A90D9;border:3px solid #fff;box-shadow:0 0 0 4px rgba(74,144,217,.35),0 2px 8px rgba(0,0,0,.3);'
-      const dot = document.createElement('div')
-      dot.style.cssText = 'position:absolute;inset:-4px;border-radius:50%;background:rgba(74,144,217,.25);animation:my-pin-pulse 2s ease-out infinite'
-      el.style.position = 'relative'
-      el.appendChild(dot)
+      el.style.cssText = 'position:relative;width:30px;height:44px;pointer-events:none;'
+      el.innerHTML = `<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#D96868;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);box-sizing:border-box;"></div><div style="position:absolute;top:0;left:0;width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:#fff;font:800 16px 'JetBrains Mono',monospace;">!</div><div style="position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:rgba(217,104,104,.30);animation:my-pin-pulse 2s ease-out infinite;"></div>`
       // inject keyframes once
       if (!document.getElementById('my-pin-style')) {
         const s = document.createElement('style')
@@ -668,7 +666,7 @@ export default function PublicMap() {
         s.textContent = '@keyframes my-pin-pulse{0%{transform:scale(.8);opacity:.7}70%{transform:scale(1.6);opacity:0}100%{transform:scale(1.6);opacity:0}}'
         document.head.appendChild(s)
       }
-      myLocationRef.current = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map)
+      myLocationRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([lng, lat]).addTo(map)
     }
     if (gps.gpsOn) {
       showMyPin(gps.lng, gps.lat)
@@ -682,6 +680,14 @@ export default function PublicMap() {
       }, { enableHighAccuracy: true, timeout: 8000 })
     }
   }, [gps])
+
+  // Auto-center to current position on first GPS fix — map starts at
+  // corridor default, then flies here once (manual locate still available)
+  useEffect(() => {
+    if (!gps.gpsOn || autoCenteredRef.current || !mapRef.current) return
+    autoCenteredRef.current = true
+    locateMe()
+  }, [gps.gpsOn, locateMe])
 
   // Active damage within 2 km of user (fallback: corridor center)
   const anchor = gps.gpsOn ? { lat: gps.lat, lng: gps.lng } : DEFAULT_CENTER
