@@ -100,7 +100,7 @@ matamu/
 │   ├── dashboard/          # Operator panel
 │   └── requirements.txt
 ├── matamu-frontend/        # React PWA
-│   ├── src/pages/warga/    # Citizen: Capture, MyReports, PublicMap
+│   ├── src/pages/warga/    # Citizen pages: Capture, MyReports, PublicMap
 │   └── src/components/
 ├── matamu-cv/              # CV pipeline (YOLO, SFace, IQE)
 └── docs/

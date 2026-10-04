@@ -11,7 +11,7 @@ Road infrastructure in Indonesia deteriorates faster than it can be repaired. Ma
 
 **Mat(a)Mu** (Mata Jalan Masyarakat — "Community Road Eye") addresses this:
 
-- **Warga (Citizens)**: capture road damage with a mobile PWA (photo + GPS, one tap)
+- **Citizens**: capture road damage with a mobile PWA (photo + GPS, one tap)
 - **Operators (Road Authority)**: review verified reports on a spatial dashboard, prioritize by severity and trust score, trigger follow-up actions
 
 ---
@@ -26,7 +26,7 @@ See `docs/architecture/system-architecture.md` for full diagram.
 - LLM: Haiku 4.5 (summary) + Bedrock Sonnet 4.5 (severity) via LiteLLM
 - TypeSafe AI: 5-question structured evaluation (confidence-gated routing)
 - Storage: PostgreSQL 16 + PostGIS (geo queries) + AWS S3 (evidence)
-- Frontend: React + Vite PWA (warga) + Django template dashboard (operator)
+- Frontend: React + Vite PWA (citizen) + Django template dashboard (operator)
 
 ---
 
@@ -111,7 +111,7 @@ All submissions now use **live GPS + watermark** (desktop & mobile uniform behav
 | Bedrock (Haiku 4.5) | Road condition summary (English, 1 sentence) |
 | IAM (matamu-s3-access) | Least-privilege S3 read/write |
 
-**Note**: EC2 deployment deferred to 90% completion milestone. All code tested locally with mock fallbacks.
+**Note**: The public application is deployed online. Local validation also supports mock fallbacks when the live model proxy is unavailable.
 
 ---
 
@@ -147,7 +147,7 @@ Summary (full detail in `docs/evaluation/failure-cases.md`):
 ## 8. Responsible Use
 
 - **Privacy**: SFace blurs faces before publication. Original photos never stored or served.
-- **Human oversight**: IQE queue requires operator accept/reject for low-trust observations.
+- **Human oversight**: the IQE queue requires an operator to accept or reject low-trust observations.
 - **Explainability**: Haiku summary + TypeSafe structured eval + agentic trace per observation.
 - **Rate limiting**: 10 captures/min/IP to prevent abuse.
 - **Transparency**: all confidence gates documented and configurable.

@@ -3,18 +3,18 @@
 ## EC2 Initial Setup (Sprint 0 — S0-1)
 
 ```bash
-# di EC2 krusetre
+# on the krusetre EC2 instance
 chmod +x docs/deployment/ec2-setup.sh
 ./docs/deployment/ec2-setup.sh
 ```
 
-Script: `ec2-setup.sh` — update OS, install Python 3.12 + venv, Postgres 16 + PostGIS, create DB `matamu`, venv `~/matamu-env`, pip deps (opencv 5.x, ultralytics, Django 5.x, django-ninja, psycopg, boto3, litellm), lalu smoke test.
+The script updates the OS, installs Python 3.12 + venv and PostgreSQL 16 + PostGIS, creates the `matamu` database and `~/matamu-env`, installs the required packages, and runs a smoke test.
 
-Manual alternative: lihat `AGENTS.md` S0-1 untuk langkah satu-per-satu.
+For a manual alternative, follow the commands in the script and the project deployment notes.
 
 ## LiteLLM / Bedrock Test (S0-3)
 
-Di EC2 (proxy jalan di :4000):
+On EC2, with the proxy running on port 4000:
 
 ```bash
 curl -X POST http://localhost:4000/v1/chat/completions -H "Content-Type: application/json" \
@@ -23,7 +23,7 @@ curl -X POST http://localhost:4000/v1/chat/completions -H "Content-Type: applica
   -d '{"model": "bedrock-claude-sonnet-4-5", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
-Jika LiteLLM belum jalan: `litellm --config litellm_config.yaml` atau cek service systemd.
+If LiteLLM is not running, start it with `litellm --config litellm_config.yaml` or check the systemd service.
 
 ## Deploy (CI/CD)
 
@@ -33,9 +33,9 @@ Jika LiteLLM belum jalan: `litellm --config litellm_config.yaml` atau cek servic
    - `EC2_USER`: ec2-user
    - `DEPLOY_PATH`: /var/www/matamu
 3. **EC2 Setup (Initial):**
-   - Pastikan `/var/www/matamu` sudah ada dan bisa diakses `ec2-user`.
-   - Setup `systemd` service untuk Gunicorn agar auto-restart:
-     Buat `/etc/systemd/system/matamu-backend.service`:
+   - Ensure `/var/www/matamu` exists and is accessible by `ec2-user`.
+   - Configure a `systemd` service for Gunicorn auto-restart.
+     Create `/etc/systemd/system/matamu-backend.service`:
      ```ini
      [Unit]
      Description=Gunicorn daemon for Mat(a)Mu
@@ -51,4 +51,4 @@ Jika LiteLLM belum jalan: `litellm --config litellm_config.yaml` atau cek servic
      [Install]
      WantedBy=multi-user.target
      ```
-     Lalu jalankan `sudo systemctl daemon-reload && sudo systemctl enable matamu-backend`.
+     Then run `sudo systemctl daemon-reload && sudo systemctl enable matamu-backend`.

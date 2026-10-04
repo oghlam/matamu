@@ -1,42 +1,42 @@
 # Dataset — RDD + Pothole + Sidoarjo
 
-## Sumber yang dipakai (Sprint 1)
+## Sources Used (Sprint 1)
 
-| Dataset | Sumber | Format |
+| Dataset | Source | Format |
 |---------|--------|--------|
 | RDD2022 (Japan/India road damage) | `sekilab/RoadDamageDetector` (GRDDC) | YOLO — download via Roboflow atau GitHub release |
-| Pothole (Roboflow Universe) | cari "pothole detection" di universe.roboflow.com | YOLOv11 |
-| Sidoarjo demo (5-10 foto) | ambil sendiri Jl. Lingkar Timur | YOLOv11 (label manual) |
+| Pothole (Roboflow Universe) | Search for "pothole detection" on universe.roboflow.com | YOLOv11 |
+| Sidoarjo demo (5–10 photos) | Locally captured on Jl. Lingkar Timur | YOLOv11 (manual labels) |
 
-> Catatan: `facebookresearch/Road-Condition-Analysis` tidak ada — yang benar `sekilab/RoadDamageDetector`.
+> Note: `facebookresearch/Road-Condition-Analysis` is not the valid source reference; use `sekilab/RoadDamageDetector`.
 
-## Download (lokal dulu, lalu scp ke EC2)
+## Download (local first, then copy to EC2)
 
 ```bash
 # 1) RDD2022 — via Roboflow (paling gampang) atau GitHub release
 # Roboflow: https://universe.roboflow.com/sekilab/generic-road-damage-detection
 
-# 2) simpan lokal
+# 2) store locally
 C:\laragon\www\matamu\matamu-cv\data\rdd\
 C:\laragon\www\matamu\matamu-cv\data\pothole\
-C:\laragon\www\matamu\matamu-cv\data\sidoarjo\        # foto mentah + GPS
+C:\laragon\www\matamu\matamu-cv\data\sidoarjo\        # raw photos + GPS
 
-# 3) upload ke EC2
+# 3) upload to EC2
 scp -i <key.pem> -r matamu-cv/data/rdd ubuntu@<EC2_IP>:/home/ubuntu/datasets/rdd/
 scp -i <key.pem> -r matamu-cv/data/sidoarjo ubuntu@<EC2_IP>:/home/ubuntu/datasets/sidoarjo/
 ```
 
-## Foto Sidoarjo (S0-6)
+## Sidoarjo Photos (S0-6)
 
-- 5-10 foto: pothole, crack, flooding, surface degradation
-- Vary: terang/gelap/hujan jika bisa
-- Catat GPS (HP → share location / foto EXIF)
-- Simpan di `matamu-cv/data/sidoarjo/` — EXIF jangan dihapus (dibaca IQE)
+- 5–10 photos: pothole, crack, flooding, and surface degradation
+- Vary lighting and weather conditions when possible
+- Record GPS using the phone location or photo EXIF data
+- Store them in `matamu-cv/data/sidoarjo/`; preserve EXIF during dataset preparation
 
 ## Labeling (S0-7) — Roboflow
 
-1. Buat project di Roboflow (gratis) → type Object Detection
-2. Upload foto Sidoarjo → label bbox + class:
+1. Create a Roboflow project → Object Detection
+2. Upload Sidoarjo photos and label bounding boxes and classes:
    `pothole, longitudinal_crack, alligator_crack, rutting, flooding, surface_degradation`
-3. Export → YOLOv11 → download ke `matamu-cv/data/sidoarjo-labeled/`
-4. Bisa ditunda ke Sprint 1 Day 1 (opsional di S0)
+3. Export as YOLOv11 and download to `matamu-cv/data/sidoarjo-labeled/`
+4. This step may be deferred to Sprint 1 Day 1.

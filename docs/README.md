@@ -5,48 +5,48 @@
 
 ---
 
-## Struktur Dokumentasi
+## Documentation Structure
 
-| Folder | Isi | Masuk GitHub? |
+| Folder | Contents | In GitHub? |
 |--------|-----|---------------|
-| `docs/sprints/` | Sprint plan, progress log, daily notes | ❌ Tidak — internal build notes |
-| `docs/architecture/` | System + agentic flow diagram | ✅ Ya |
-| `docs/evaluation/` | Failure cases + benchmark | ✅ Ya |
-| `docs/agentic-traces/` | Trace JSON evidence (tiap capture) | ✅ Ya |
-| `docs/matamu-road-defect-icons/` | Sumber icon defect (SVG + CSS) — JANGAN duplikat mapping | ✅ Ya |
-| `docs/deployment/` | Deployment guide, CI/CD pipeline, env setup | ✅ Ya (tanpa credentials) |
-| `Road-Asset-Intelligence-Blueprint/` | Bahan mentah — RAIP blueprint | ❌ Tidak (.gitignore) |
-| `Mat_a_Mu_Project_Proposal.pdf` | Bahan mentah — proposal | ❌ Tidak (.gitignore) |
-| `Mat_a_Mu_Technical_Sharpening.md` | Bahan mentah — technical detail | ❌ Tidak (.gitignore) |
-| `cover-matamu*.png` | Bahan mentah — cover images | ❌ Tidak (.gitignore) |
+| `docs/sprints/` | Sprint plans, progress logs, daily notes | ❌ No — internal build notes |
+| `docs/architecture/` | System and agentic flow diagrams | ✅ Yes |
+| `docs/evaluation/` | Failure cases and benchmarks | ✅ Yes |
+| `docs/agentic-traces/` | JSON decision traces for captured observations | ✅ Yes |
+| `docs/matamu-road-defect-icons/` | Defect icon source files (SVG + CSS); keep one mapping source | ✅ Yes |
+| `docs/deployment/` | Deployment guide, CI/CD pipeline, environment setup | ✅ Yes, without credentials |
+| `Road-Asset-Intelligence-Blueprint/` | Raw RAIP blueprint material | ❌ No (`.gitignore`) |
+| `Mat_a_Mu_Project_Proposal.pdf` | Raw proposal material | ❌ No (`.gitignore`) |
+| `Mat_a_Mu_Technical_Sharpening.md` | Raw technical notes | ❌ No (`.gitignore`) |
+| `cover-matamu*.png` | Raw cover images | ❌ No (`.gitignore`) |
 
 ---
 
-## Yang TIDAK Boleh Masuk GitHub
+## Files That Must Not Enter GitHub
 
 - ❌ Proposal PDF (internal Blaz Labs)
-- ❌ Blueprint RAIP (internal reference)
+- ❌ RAIP blueprint (internal reference)
 - ❌ Cover images (internal branding)
-- ❌ `.env` / API keys / credentials
-- ❌ LiteLLM proxy config
-- ❌ AWS credentials (.pem, .key)
-- ❌ Model files (.onnx, .pt — terlalu besar)
-- ❌ Upload evidence (foto warga)
-- ❌ `.workbuddy-ai/` (session memory)
-- ❌ `.claude/` dan `AGENTS.md` (agent/developer instructions)
-- ❌ `media/evidence/` lokal (foto demo/dev — regen via seed)
-- ❌ `db.sqlite3` (database lokal — schema via migrations)
+- ❌ `.env` files, API keys, and credentials
+- ❌ LiteLLM proxy configuration
+- ❌ AWS credentials (`.pem`, `.key`)
+- ❌ Model files (`.onnx`, `.pt`, and similar large artifacts)
+- ❌ Uploaded evidence photos
+- ❌ `.workbuddy-ai/` and `.claude/` (agent session data)
+- ❌ `AGENTS.md` (local agent/developer instructions)
+- ❌ Local `media/evidence/` files
+- ❌ `db.sqlite3` (local database; schema is represented by migrations)
 
-## Yang MASUK GitHub
+## Files That Belong in GitHub
 
-- ✅ Source code (matamu-backend, matamu-cv, matamu-frontend)
-- ✅ Documentation (docs/)
+- ✅ Source code (`matamu-backend`, `matamu-cv`, `matamu-frontend`)
+- ✅ Public documentation (`docs/`)
 - ✅ `.gitignore`
 - ✅ `requirements.txt` / `package.json` (pinned dependencies)
-- ✅ `Dockerfile` / `docker-compose.yml` (tanang credentials)
-- ✅ Example env file (`.env.example` — placeholder only, no real values)
+- ✅ `Dockerfile` / `docker-compose.yml` (without credentials)
+- ✅ Example environment file (`.env.example`; placeholders only)
 - ✅ README.md
-- ✅ Architecture diagram (docs/architecture/)
+- ✅ Architecture diagrams (`docs/architecture/`)
 
 ---
 
@@ -57,12 +57,12 @@ GitHub (repo) → CI/CD auto-deploy → EC2 Kurusetra (AWS)
 ```
 
 **Rules:**
-- Push ke `main` → auto deploy ke EC2
-- Credentials dipisah: GitHub Secrets atau EC2 env vars (tidak di code)
-- `.env` di EC2 dibuat manual, tidak dari repo
+- Pushing to `main` triggers deployment to EC2 when the workflow is enabled.
+- Credentials must be stored in GitHub Secrets or EC2 environment variables, never in source code.
+- The production `.env` file is created manually on EC2 and is never committed.
 
 ---
 
 ## Env File Structure (.env.example)
 
-File `.env.example` (placeholder, aman untuk repo) dibuat terpisah. File `.env` asli hanya di EC2, tidak masuk repo.
+The `.env.example` file contains safe placeholders for the repository. The production `.env` file exists only on EC2 and is never committed.

@@ -2,32 +2,32 @@
 
 ## Status
 
-⚠️ **Auto-deploy sementara dinonaktifkan** karena server EC2 AWS belum siap.
+⚠️ **Auto-deploy is temporarily disabled** because the AWS EC2 server is not ready.
 
 ## File
 
-- `deploy.yml.disabled` - Workflow deploy otomatis ke EC2 (akan diaktifkan setelah EC2 siap)
+- `deploy.yml.disabled` - Disabled EC2 deployment workflow (enable when EC2 is ready)
 
-## Cara Aktifkan Deploy
+## Enable Deployment
 
-1. Siapkan EC2 instance
-2. Setup secrets di GitHub:
-   - `EC2_SSH_DEPLOY_KEY` - Private SSH key untuk akses EC2
+1. Prepare the EC2 instance.
+2. Configure GitHub Secrets:
+   - `EC2_SSH_DEPLOY_KEY` - private SSH key for EC2 access
    - `EC2_HOST` - IP/hostname EC2
    - `EC2_USER` - Username (ubuntu/ec2-user)
-   - `DEPLOY_PATH` - Path deploy di EC2 (default: /var/www/matamu)
-3. Rename `deploy.yml.disabled` → `deploy.yml`
-4. Push ke `main` branch
+   - `DEPLOY_PATH` - Deployment path on EC2 (default: /var/www/matamu)
+3. Rename `deploy.yml.disabled` to `deploy.yml`.
+4. Push to the `main` branch.
 
-## Manual Deploy (Temporary)
+## Manual Deployment (Temporary)
 
-Sementara deploy manual via SSH:
+Use SSH for temporary manual deployment:
 
 ```bash
-# SSH ke EC2
+# SSH to EC2
 ssh user@ec2-host
 
-# Pull latest
+# Pull the latest revision
 cd /var/www/matamu
 git pull origin main
 
@@ -38,8 +38,8 @@ python matamu-backend/manage.py migrate
 python matamu-backend/manage.py collectstatic --noinput
 sudo systemctl restart matamu-backend
 
-# Frontend (build locally, lalu upload)
+# Frontend (build locally, then upload)
 cd matamu-frontend
 npm run build
-# rsync dist/ ke EC2
+# rsync dist/ to EC2
 ```

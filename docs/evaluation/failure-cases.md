@@ -67,7 +67,7 @@
 | **Actual** | Pipeline continues; `reverse_geocode(0, 0)` returns "0°0'0\"N 0°0'0\"E" or similar |
 | **Root cause** | No GPS validation in capture endpoint |
 | **Mitigation** | Added `gps_accuracy` optional param; display `location_label = "GPS unavailable"` if lat/lng = 0. Integration test confirmed HTTP 200 with `lat=0,lng=0`. |
-| **Improvement** | PWA warga shows GPS accuracy warning; operator can see coordinates in dashboard. |
+| **Improvement** | The citizen PWA shows a GPS accuracy warning; operators can see coordinates in the dashboard. |
 
 ---
 

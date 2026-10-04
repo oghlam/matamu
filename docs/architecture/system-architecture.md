@@ -6,7 +6,7 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │                          USERS                                      │
 │                                                                     │
-│   Warga (Citizen)              Operator (Road Authority)            │
+│   Citizen                      Operator (Road Authority)            │
 │   Mobile PWA (React)           Dashboard (Django Template)          │
 │   /capture  /my-reports  /     /dashboard/  /dashboard/iqe  etc.   │
 └──────────────┬──────────────────────────────┬───────────────────────┘
@@ -111,7 +111,7 @@ DB (Observation) → [published | pending_verification]
 | Database | PostgreSQL 16 + PostGIS | EC2 local |
 | Evidence storage | S3 (matamu-evidence) | ap-southeast-1 |
 | LLM proxy | LiteLLM on EC2 | EC2 local |
-| Frontend (warga PWA) | Static / EC2 | ap-southeast-1 |
+| Frontend (citizen PWA) | Static / EC2 | ap-southeast-1 |
 | Basemap tiles | OpenFreeMap Bright, OSM data (free, keyless) | CDN |
 | Satellite tiles | Esri ArcGIS (free) | CDN |
 | Bing tiles (via Ion) | Cesium Ion (Bing) | via PowerUp |
