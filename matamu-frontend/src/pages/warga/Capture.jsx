@@ -468,8 +468,8 @@ export default function Capture() {
             </p>
           </div>
 
-          {/* EXIF Debug Info (visible when exifDebug is set) */}
-          {exifDebug && (
+          {/* EXIF Debug Info (dev mode only) */}
+          {import.meta.env.DEV && exifDebug && (
             <details className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-[10px] font-mono">
               <summary className="font-bold text-blue-900 cursor-pointer">EXIF Debug Info (tap to expand)</summary>
               <div className="mt-2 space-y-1 text-blue-800">
@@ -527,8 +527,8 @@ export default function Capture() {
             </div>
           )}
 
-          {/* Action buttons - sticky at bottom on mobile */}
-          <div className="space-y-2 pt-2">
+          {/* Action buttons - sticky at bottom above bottom nav */}
+          <div className="sticky bottom-16 bg-surface/95 backdrop-blur-md pt-2 pb-3 space-y-2 border-t border-line shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-20">
             <button
               onClick={submit}
               disabled={submitDisabled}

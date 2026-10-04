@@ -768,7 +768,7 @@ export default function PublicMap() {
           onClick={toggleBaseMap}
           aria-label="Base map"
           title={baseMode === 'light' ? 'Satellite' : baseMode === 'sat' ? (ionKey ? 'Bing (Ion)' : 'Light') : 'Light'}
-          className="w-10 h-10 rounded-xl shadow-float flex items-center justify-center bg-surface text-text-secondary hover:bg-surface-2 transition-colors"
+          className="w-11 h-11 rounded-xl shadow-float flex items-center justify-center bg-surface text-text-secondary hover:bg-surface-2 transition-colors touch-target"
         >
           <Globe size={18} />
         </button>
@@ -777,7 +777,7 @@ export default function PublicMap() {
           aria-label="Traffic"
           title="Traffic"
           className={[
-            'w-10 h-10 rounded-xl shadow-float flex items-center justify-center transition-colors',
+            'w-11 h-11 rounded-xl shadow-float flex items-center justify-center transition-colors touch-target',
             trafficOn ? 'bg-accent text-dark' : 'bg-surface text-text-secondary hover:bg-surface-2',
           ].join(' ')}
         >
@@ -788,7 +788,7 @@ export default function PublicMap() {
           aria-label={is3D ? '2D' : '3D'}
           title={is3D ? '2D' : '3D'}
           className={[
-            'w-10 h-10 rounded-xl shadow-float flex items-center justify-center transition-colors',
+            'w-11 h-11 rounded-xl shadow-float flex items-center justify-center transition-colors touch-target',
             is3D ? 'bg-accent text-dark' : 'bg-surface text-text-secondary hover:bg-surface-2',
           ].join(' ')}
         >
@@ -799,7 +799,7 @@ export default function PublicMap() {
           aria-label={heatmap ? 'Show pins' : 'Show heatmap'}
           title={heatmap ? 'Show pins' : 'Show heatmap'}
           className={[
-            'w-10 h-10 rounded-xl shadow-float flex items-center justify-center transition-colors',
+            'w-11 h-11 rounded-xl shadow-float flex items-center justify-center transition-colors touch-target',
             heatmap ? 'bg-accent text-dark' : 'bg-surface text-text-secondary hover:bg-surface-2',
           ].join(' ')}
         >
@@ -809,7 +809,7 @@ export default function PublicMap() {
           onClick={locateMe}
           aria-label="My location"
           title="My location"
-          className="w-10 h-10 rounded-xl bg-surface text-text-secondary shadow-float flex items-center justify-center hover:bg-surface-2 transition-colors"
+          className="w-11 h-11 rounded-xl bg-surface text-text-secondary shadow-float flex items-center justify-center hover:bg-surface-2 transition-colors touch-target"
         >
           <LocateFixed size={18} />
         </button>

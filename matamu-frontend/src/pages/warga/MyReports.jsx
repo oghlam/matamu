@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, MapPin, LogOut, ShieldCheck, AlertCircle, Clock } from 'lucide-react'
+import { FileText, MapPin, LogOut, ShieldCheck, AlertCircle, Clock, Flame } from 'lucide-react'
 import { useObservations } from '../../hooks/useObservations'
 import Badge, { statusVariant, severityVariant } from '../../components/ui/Badge'
 import DefectIcon from '../../components/ui/DefectIcon'
@@ -216,8 +216,8 @@ function ReportCard({ obs, clusterCount = 1, topTrust, firstTime }) {
         <span className="text-text-muted">•</span>
         <span className="text-text-secondary">first {firstLabel}</span>
         {isViral && (
-          <span className="ml-auto text-[10px] font-bold bg-accent text-dark px-2 py-0.5 rounded-full">
-            🔥 Viral
+          <span className="ml-auto text-[10px] font-bold bg-accent text-dark px-2 py-0.5 rounded-full flex items-center gap-1">
+            <Flame size={12} /> Viral
           </span>
         )}
       </div>

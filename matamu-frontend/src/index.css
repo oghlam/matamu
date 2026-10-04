@@ -23,6 +23,15 @@ body {
   flex-direction: column;
 }
 
+/* Touch targets and contrast accessibility */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+.text-contrast-accent {
+  color: #9c6c00;
+}
+
 /* Viewfinder scanline sweep — full camera live */
 @keyframes scan-sweep {
   0%   { transform: translateY(-100%); }
@@ -31,4 +40,14 @@ body {
 .scanline {
   animation: scan-sweep 2.8s linear infinite;
   will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scanline,
+  .animate-pulse,
+  .animate-pulse-gps,
+  .animate-glow-pulse,
+  .animate-spin {
+    animation: none !important;
+  }
 }
