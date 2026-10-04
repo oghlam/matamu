@@ -34,6 +34,15 @@
       <div class="bar" aria-hidden="true"><i></i></div>
     </div>
     <div id="root"></div>
+    <!-- Mobile debugging console (loads when ?debug=1 in URL) -->
+    <script>
+      if (location.search.includes('debug=1')) {
+        const script = document.createElement('script')
+        script.src = 'https://cdn.jsdelivr.net/npm/eruda'
+        script.onload = () => eruda.init()
+        document.head.appendChild(script)
+      }
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

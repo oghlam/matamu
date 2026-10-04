@@ -144,6 +144,14 @@ docs/DCIM/
 docs/gps-pulse-animation.md
 docs/native-like-bottom-navigation.md
 docs/ui-improvements-capture-page.md
+# Internal work logs (dated, never publish)
+docs/CHANGELOG-*.md
+docs/sprints/PROGRESS-*.md
+# Photos shared via chat (contain EXIF GPS — privacy)
+docs/WhatsApp*
+docs/*.jpeg
+# Scratch test files (root)
+test-exif.html
 # Local-only trace dumps (tracked evidence traces are unaffected)
 docs/agentic-traces/trace_20260930_132141_245531_published.json
 

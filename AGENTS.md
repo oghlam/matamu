@@ -7,9 +7,9 @@
 
 ---
 
-## STATUS BERLAKU (24 Sep 2026) — BACA DULU
+## STATUS BERLAKU (1 Okt 2026) — BACA DULU
 
-Sprint 0–4 selesai lokal + **24 Sep Map 3D + Traffic + PowerUp + Base map Ion** selesai (PWA & dashboard). Bagian "Sprint Pertama: SPRINT 0" di bawah adalah **arsip historis**, bukan tugas aktif.
+Sprint 0–4 selesai lokal + **24 Sep Map 3D + Traffic + PowerUp + Base map Ion** selesai (PWA & dashboard). **1 Okt: GPS watermark feature deployed** (solve mobile EXIF stripping issue). Bagian "Sprint Pertama: SPRINT 0" di bawah adalah **arsip historis**, bukan tugas aktif.
 
 | Layanan | URL lokal | Cara jalan |
 |---|---|---|
@@ -55,13 +55,14 @@ venv\Scripts\python.exe docs/integration_test.py                    # harap 46/4
 7. **Keputusan arsitektur (jangan diubah tanpa diskusi):**
    - Operator = Django template `/dashboard/` (bukan React). Warga = React PWA. PWA route `/admin` sudah dihapus.
    - Presentasi ke juri 100% dashboard + PWA; `/admin/` Django tetap hidup tapi tidak dibicarakan (login dashboard bergantung padanya).
-   - Basemap gratis: CARTO Positron + Esri World Imagery + label (tanpa billing). Google hanya untuk geocoding server-side. Routing demo: OSRM publik.
+   - Basemap gratis: OpenFreeMap Bright (data OSM) + Esri World Imagery + label (tanpa billing). Google hanya untuk geocoding server-side. Routing demo: OSRM publik.
    - RBAC: grup `Operator` vs `Supervisor` (custom permission `can_moderate_iqe`); user dibuat via `/admin/auth/user/`. Jangan buka gate tanpa izin tertulis.
 8. **Evidence & data:**
    - JANGAN kembalikan URL `mock://` untuk user-facing — fallback dev wajib `/media/` lokal (S3 hanya di prod).
    - Koordinat demo = plot manual koridor Lingkar Timur. JANGAN klaim "GPS dari kamera" ke juri (foto tanpa EXIF GPS).
    - Foto tanpa EXIF >500m dari klaim = paksa `pending` (frontend tolak, backend override). Ambang: 0.5 km.
    - GPS wajib aktif untuk submit PWA. Status lifecycle: pending → published → acknowledged → resolved. `resolved` = sudah diperbaiki fisik (pin hilang dari peta).
+   - **GPS Watermark (1 Okt 2026):** Semua foto submission sekarang pakai **live GPS + visual watermark badge** (baked in via canvas). EXIF GPS tidak reliable di mobile (OS strip metadata untuk privacy). Watermark position: bottom-center, tidak menutupi detection area. Backend tetap validasi EXIF untuk desktop uploads (optional check).
 9. **Defect icons (sumber tunggal):**
    - Artwork: `docs/matamu-road-defect-icons/*.svg`. Django: partial `_defect_icon.html` + `static/dashboard/icons/`. React: `public/icons/` + `DefectIcon.jsx`. JANGAN duplikat mapping, JANGAN pakai Lucide/emoji untuk kelas defect.
 10. **Stack terkunci (jangan upgrade sembarang):**
@@ -69,6 +70,12 @@ venv\Scripts\python.exe docs/integration_test.py                    # harap 46/4
     - Ikon menu: `square` cap + `miter` join (tajam). Tooltip rail: custom saja (hapus atribut `title` bawaan).
 11. **Sebelum klaim selesai:** render 4 halaman dashboard 200 + `node --check` untuk JS inline + `npm run build` untuk PWA + hapus `dist/` lagi.
 12. **DB demo:** hanya id 3–8. Data testing WAJIB dibersihkan setelah integration test (jangan biarkan lat=0 atau duplikat).
+13. **Mobile Browser Limitations (PENTING):**
+    - **EXIF GPS di-strip oleh OS** — Android/iOS file picker memberikan processed copy (bukan file original), GPS metadata dihapus untuk privacy protection.
+    - **File name berubah** — `IMG_xxx.jpg` → random number `1000408569.jpg` di mobile.
+    - **Solution:** GPS watermark badge (visual, baked in via canvas) — koordinat tidak rely pada EXIF.
+    - **Testing:** Wajib test di **real mobile device**, bukan desktop emulation (OS file picker behavior beda).
+    - **EXIF check tetap ada** untuk validation desktop uploads (optional), tapi submission pakai live GPS + watermark.
 
 ---
 

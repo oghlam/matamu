@@ -83,7 +83,7 @@ Mat(a)Mu ("Mata Jalan Mu" — Your Road Eyes) is a PWA that turns citizens into 
 - **CV**: OpenCV 5.0.0.93, YOLOv11n (Ultralytics 8.4.159), SFace/YuNet
 - **Backend**: Django 5.1, Django Ninja 1.3.0, google-auth 2.58.0 (local SQLite; PostGIS on EC2) + Overpass proxy (`/api/overpass`)
 - **Frontend**: React 19, Vite 8.3.0, Tailwind 3.4.19, MapLibre GL 4.7.1, exifr, JetBrains Mono
-- **Map**: CARTO Positron + Esri World Imagery (keyless) + MapLibre 3D terrain (demotiles) + OpenFreeMap 3D buildings + Overpass roads + TomTom live traffic (via PowerUp) + Cesium Ion Bing (via PowerUp)
+- **Map**: OpenFreeMap Bright (OSM data, keyless) + Esri World Imagery (keyless) + MapLibre 3D terrain (demotiles) + OpenFreeMap 3D buildings + Overpass roads + TomTom live traffic (via PowerUp) + Cesium Ion Bing (via PowerUp)
 - **LLM**: Haiku 4.5 (summary) + Bedrock Sonnet 4.5 (severity) via LiteLLM — local mock when the proxy is empty
 - **Agentic**: Perception → Decision → Action + TypeSafe confidence gating, trace JSON
 - **Storage**: S3 `matamu-evidence` (prod); local `/media/` (dev)
@@ -123,7 +123,7 @@ matamu/
 - **Anti-spoof**: Gallery photos use embedded EXIF location; photos without EXIF fall back to live GPS
 
 ### Operator (Django Dashboard — `/dashboard/`)
-- **Overview**: Canvas-first MapLibre map (CARTO + Esri hybrid satellite + **Bing via Ion**), KPI pills, Location card + evidence photo + severity arc (compact 72px, h-168), **collapsible header ^/v**, 3D terrain & buildings, Traffic (same green boxes, live via PowerUp), Light/Sat/Ion base map cycle, **PowerUp** (above Logout) for TomTom & Ion keys
+- **Overview**: Canvas-first MapLibre map (OpenFreeMap Bright + Esri hybrid satellite + **Bing via Ion**), KPI pills, Location card + evidence photo + severity arc (compact 72px, h-168), **collapsible header ^/v**, 3D terrain & buildings, Traffic (same green boxes, live via PowerUp), Light/Sat/Ion base map cycle, **PowerUp** (above Logout) for TomTom & Ion keys
 - **Reports**: Table + filters + Reporter column (OAuth email) + Supervisor-only maintenance delete
 - **IQE Queue**: Low-trust queue + thumbnails + inspection modal + Accept/Reject (Supervisor only) + **review_reason** display (why pending)
 - **Agentic**: `/dashboard/agentic/` — viewer for the 50 latest traces (timestamp, detection, conf, status, routing, decision reason, actions)

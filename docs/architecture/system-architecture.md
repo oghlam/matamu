@@ -112,7 +112,7 @@ DB (Observation) → [published | pending_verification]
 | Evidence storage | S3 (matamu-evidence) | ap-southeast-1 |
 | LLM proxy | LiteLLM on EC2 | EC2 local |
 | Frontend (warga PWA) | Static / EC2 | ap-southeast-1 |
-| Basemap tiles | CARTO (free) | CDN |
+| Basemap tiles | OpenFreeMap Bright, OSM data (free, keyless) | CDN |
 | Satellite tiles | Esri ArcGIS (free) | CDN |
 | Bing tiles (via Ion) | Cesium Ion (Bing) | via PowerUp |
 | Geocoding | Google Maps API | server-side only |

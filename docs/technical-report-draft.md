@@ -87,6 +87,19 @@ See `docs/architecture/agentic-flow.md` for full diagram.
 
 **Scenario test results: 4/4 PASS** (see `docs/agentic-traces/scenario_summary.json`)
 
+### Evidence Integrity: GPS Watermark
+
+**Challenge:** Mobile OS (Android/iOS) strip EXIF GPS metadata from photos selected via file picker (privacy protection). This broke location verification for citizen reports.
+
+**Solution:** Visual GPS watermark badge baked into photo via HTML5 Canvas before submission:
+- **Position:** Bottom-center (12px margin), does not obstruct defect detection area
+- **Content:** GPS coordinates + timestamp (e.g., `GPS: -7.433355, 112.731781 | 2026-10-01 15:22:33`)
+- **Style:** Semi-transparent dark background, white text (JetBrains Mono)
+- **Implementation:** `applyGpsWatermark()` composites badge onto original image, exports JPEG blob
+- **Benefit:** Coordinates visible in photo itself (immune to metadata stripping), transparent to operators/jury
+
+All submissions now use **live GPS + watermark** (desktop & mobile uniform behavior). EXIF check retained for optional backend validation.
+
 ---
 
 ## 5. AWS Deployment
