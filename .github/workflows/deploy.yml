@@ -36,6 +36,7 @@ jobs:
             --exclude 'matamu-backend/db.sqlite3' --exclude 'matamu-backend/venv' \
             --exclude 'matamu-backend/.env' --exclude '.env' \
             --exclude '.github' --exclude 'node_modules' \
+            --exclude 'matamu-backend/media' --exclude 'matamu-backend/media/**' \
             ./ $EC2_USER@$EC2_HOST:/home/ec2-user/matamu/
 
       - name: Migrate & Restart on EC2
@@ -55,6 +56,30 @@ jobs:
               sudo systemctl daemon-reload
             fi
             cd /home/ec2-user/matamu
+            # Keep runtime data outside the git checkout. This avoids rsync/reset
+            # changing media permissions or deleting evidence during deploy.
+            MEDIA_ROOT="/var/lib/matamu/media"
+            sudo install -d -o ec2-user -g ec2-user -m 0755 \
+              "$MEDIA_ROOT" "$MEDIA_ROOT/evidence"
+            sudo find "$MEDIA_ROOT" -type d -exec chmod 0755 {} +
+            sudo find "$MEDIA_ROOT" -type f -exec chmod 0644 {} +
+            # Keep old Nginx aliases working while all new writes use the
+            # canonical runtime directory. Never store evidence in the repo.
+            if [ -e matamu-backend/media ] && [ ! -L matamu-backend/media ]; then
+              sudo cp -a matamu-backend/media/. "$MEDIA_ROOT/" || true
+              sudo rm -rf matamu-backend/media
+            fi
+            ln -sfn "$MEDIA_ROOT" matamu-backend/media
+            sudo mkdir -p /var/www
+            sudo ln -sfn /home/ec2-user/matamu /var/www/matamu
+            sudo find /var/www -maxdepth 2 -type d -exec chmod 0755 {} + 2>/dev/null || true
+            if [ -f matamu-backend/.env ]; then
+              if grep -q '^MEDIA_ROOT=' matamu-backend/.env; then
+                sudo sed -i "s|^MEDIA_ROOT=.*|MEDIA_ROOT=$MEDIA_ROOT|" matamu-backend/.env
+              else
+                printf '\nMEDIA_ROOT=%s\n' "$MEDIA_ROOT" | sudo tee -a matamu-backend/.env >/dev/null
+              fi
+            fi
             echo "=== Installing deps (light) ==="
             source "$VENV_PATH/bin/activate"
             pip install -q Django==5.1 django-ninja==1.3.0 psycopg2-binary django-cors-headers python-dotenv gunicorn requests boto3 Pillow opencv-python==5.0.0.93
@@ -65,12 +90,17 @@ jobs:
             cd ../matamu-backend
             echo "=== Migrate (PostGIS) ==="
             USE_POSTGIS=1 python manage.py migrate --noinput
+            echo "=== Validate nginx configuration ==="
+            sudo nginx -t
             echo "=== Reload nginx (PWA) ==="
-            sudo nginx -s reload 2>&1 | head -5 || true
+            sudo systemctl reload nginx
             echo "=== Restart matamu ==="
             sudo systemctl restart matamu
             sleep 3
             echo "=== Check ==="
+            test -d "$MEDIA_ROOT/evidence"
+            test -r "$MEDIA_ROOT/evidence"
+            echo "Media root: $MEDIA_ROOT"
             curl -sf http://127.0.0.1:8080/api/ping | head -c 100; echo
             echo "=== Deployment Completed Successfully ==="
           DEPLOY_SCRIPT

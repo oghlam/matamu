@@ -28,27 +28,43 @@ If LiteLLM is not running, start it with `litellm --config litellm_config.yaml` 
 ## Deploy (CI/CD)
 
 1. **SSH Key:** Add your `MyServerKey.pem` content to GitHub Secrets as `EC2_SSH_DEPLOY_KEY`.
-2. **Secrets:** Add following to GitHub Repo Secrets:
+2. **Secrets:** Add the following to GitHub Repo Secrets:
    - `EC2_HOST`: <your-ec2-public-ip>
-   - `EC2_USER`: ec2-user
-   - `DEPLOY_PATH`: /var/www/matamu
-3. **EC2 Setup (Initial):**
-   - Ensure `/var/www/matamu` exists and is accessible by `ec2-user`.
-   - Configure a `systemd` service for Gunicorn auto-restart.
-     Create `/etc/systemd/system/matamu-backend.service`:
-     ```ini
-     [Unit]
-     Description=Gunicorn daemon for Mat(a)Mu
-     After=network.target
+   - `EC2_USER`: `ec2-user`
+3. **Canonical EC2 layout:** The workflow deploys code to `/home/ec2-user/matamu`.
+   Runtime evidence is intentionally outside the checkout at
+   `/var/lib/matamu/media`, with `0755` directories and `0644` files. The
+   deploy creates `/var/www/matamu` as a compatibility symlink, but Nginx
+   should use `/var/lib/matamu/media/` for its `/media/` alias.
+4. **EC2 Setup (Initial):** Configure the `matamu` systemd service to use the
+   same checkout and environment:
+   ```ini
+   [Unit]
+   Description=Mat(a)Mu Gunicorn
+   After=network.target
 
-     [Service]
-     User=ec2-user
-     Group=ec2-user
-     WorkingDirectory=/var/www/matamu/matamu-backend
-     ExecStart=/home/ec2-user/matamu-env/bin/gunicorn matamu_backend.wsgi:application
-     Restart=always
+   [Service]
+   User=ec2-user
+   Group=ec2-user
+   WorkingDirectory=/home/ec2-user/matamu/matamu-backend
+   EnvironmentFile=/home/ec2-user/matamu/matamu-backend/.env
+   ExecStart=/home/ec2-user/matamu-env/bin/gunicorn --bind 127.0.0.1:8080 matamu_backend.wsgi:application
+   Restart=always
 
-     [Install]
-     WantedBy=multi-user.target
-     ```
-     Then run `sudo systemctl daemon-reload && sudo systemctl enable matamu-backend`.
+   [Install]
+   WantedBy=multi-user.target
+   ```
+   Then run `sudo systemctl daemon-reload && sudo systemctl enable matamu`.
+5. **Nginx media location:** In the active dashboard server block, use an
+   exact filesystem alias (the trailing slash is required):
+   ```nginx
+   location /media/ {
+       alias /var/lib/matamu/media/;
+       autoindex off;
+   }
+   ```
+   Do not alias `/home/ec2-user/.../media/` and do not use a relative path.
+   Validate and reload with:
+   ```bash
+   sudo nginx -t && sudo systemctl reload nginx
+   ```

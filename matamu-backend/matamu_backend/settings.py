@@ -145,10 +145,14 @@ STATICFILES_DIRS = []   # app static dirs auto-discovered via APP_DIRS=True
 
 # Evidence photos served locally in dev (S3 in prod via api/storage.py)
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-# Uploads must stay readable by nginx (worker runs as another user;
-# default 0600 caused 403 on /media/ in prod). ponytail: 0644 is enough.
+# Keep one canonical media path in every environment. Production can override
+# this with MEDIA_ROOT in .env, but the deploy script always prepares this path.
+MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
+# Nginx serves media as a different user than Gunicorn. Explicit permissions
+# prevent uploads copied from Django's temporary file (often mode 0600) from
+# becoming unreadable after deployment.
 FILE_UPLOAD_PERMISSIONS = 0o644
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
