@@ -481,10 +481,11 @@ map.addControl(new TrafficToggleDash(), 'top-right');
 let markers = [];   // [{ m, id, o }]
 let activeId = null;
 
-// Normal dot vs active target (pulsing ring + crosshair)
+// Normal pin (gmaps-style teardrop, severity color) vs active target (pulsing ring + crosshair)
 function dotHTML(col) {
-  return `<div style="width:12px;height:12px;border-radius:50%;background:${col};` +
-    `border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer"></div>`;
+  return `<div style="position:relative;width:30px;height:44px;cursor:pointer">` +
+    `<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);` +
+    `background:${col};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);box-sizing:border-box"></div></div>`;
 }
 function targetHTML(col) {
   return `<div style="position:relative;width:30px;height:30px;cursor:pointer">` +
@@ -663,7 +664,7 @@ function renderMarkers() {
     if (!Number.isFinite(o.lat) || !Number.isFinite(o.lng)) return;
     const el = document.createElement('div');
     el.addEventListener('click', (e) => { e.stopPropagation(); activeId = o.id; paintActive(); selectObs(o); openDirTip(o); });
-    const m = new maplibregl.Marker({ element: el }).setLngLat([o.lng, o.lat]).addTo(map);
+    const m = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([o.lng, o.lat]).addTo(map);
     markers.push({ m, id: o.id, o });
   });
   paintActive();
@@ -818,13 +819,14 @@ window.routeTo = function(id) {
       const myLng = pos.coords.longitude;
       const myLat = pos.coords.latitude;
 
-      // Place "you are here" marker
+      // Place "you are here" marker — red teardrop (gmaps-style), no glyph
       if (_myMarker) _myMarker.remove();
       const el = document.createElement('div');
-      el.style.cssText = 'width:16px;height:16px;border-radius:50%;' +
-        'background:#4A90D9;border:3px solid #fff;' +
-        'box-shadow:0 0 0 4px rgba(74,144,217,.35),0 2px 8px rgba(0,0,0,.3)';
-      _myMarker = new maplibregl.Marker({ element: el })
+      el.style.cssText = 'position:relative;width:30px;height:44px;pointer-events:none;';
+      el.innerHTML = '<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;' +
+        'transform:rotate(-45deg);background:#D96868;border:2.5px solid #fff;' +
+        'box-shadow:0 2px 8px rgba(0,0,0,.35);box-sizing:border-box"></div>';
+      _myMarker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([myLng, myLat])
         .addTo(map);
 
