@@ -16,7 +16,7 @@
 | lingkar-timur5.jpeg | 0.83 | 78% | high | published | 2 |
 | lingkar-timur6.jpeg | 0.83 | 81% | high | published | 0 |
 
-**Avg Trust Score: 0.805** · **Damage class confidence: 1.0 (all pothole)** · **Integration test: 42/42 PASS**
+**Avg Trust Score: 0.805** · **Damage class confidence: 1.0 (all pothole)** · **Integration test: 46/46 PASS**
 
 ---
 
@@ -79,7 +79,7 @@
 | **Expected** | Graceful fallback |
 | **Actual** | `haiku_summary` returns mock: `"Detected {class} with {conf}% confidence, {severity} severity."` |
 | **Root cause** | EC2 not yet active (waiting for 90% completion); LiteLLM proxy not running locally |
-| **Mitigation** | All LLM calls wrapped in try/except with mock fallback. `LITELLM_BASE_URL=""` → instant mock (no timeout). Tested: 42/42 integration test passes without LLM. |
+| **Mitigation** | All LLM calls wrapped in try/except with mock fallback. `LITELLM_BASE_URL=""` → instant mock (no timeout). Tested: 46/46 integration test passes without LLM. |
 | **Evidence** | `api/llm.py` lines 29–49: mock fallback present for all 3 functions. |
 
 ---
@@ -126,7 +126,7 @@
 
 | Metric | Value |
 |---|---|
-| Integration test pass rate | 42/42 (100%) |
+| Integration test pass rate | 46/46 (100%) |
 | Agentic scenario pass rate | 4/4 (100%) |
 | Avg trust score (6 photos) | 0.805 |
 | Avg latency (mock mode) | ~2s per capture |

@@ -185,3 +185,7 @@ Key benefits:
 ## License
 
 MIT © 2026 Mat(a)Mu Team
+
+## Submission Documentation
+
+The Devpost-ready write-up and supporting evidence are maintained in [`DEVPOST-SUBMISSION.md`](DEVPOST-SUBMISSION.md) and [`docs/devpost/`](docs/devpost/).

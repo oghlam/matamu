@@ -119,7 +119,7 @@ All submissions now use **live GPS + watermark** (desktop & mobile uniform behav
 
 | Metric | Value |
 |--------|-------|
-| Integration test | 42/42 PASS |
+| Integration test | 46/46 PASS |
 | Agentic scenario | 4/4 PASS |
 | Avg trust score (6 photos) | 0.805 |
 | Avg latency (mock mode) | ~2s/capture |
@@ -164,7 +164,7 @@ cd matamu-backend
 python manage.py migrate
 python manage.py runserver 8000
 # In another terminal:
-python docs/integration_test.py      # 42/42 PASS
+python docs/integration_test.py      # 46/46 PASS
 python docs/agentic_scenario_runner.py  # 4/4 PASS
 ```
 

@@ -129,6 +129,17 @@ docker-compose.local.yml
 
 # --- WORKBUDDY AI INTERNAL ---
 .workbuddy-ai/
+.claude/
+AGENTS.md
+
+# --- INTERNAL BUILD NOTES (keep locally, do not publish) ---
+docs/sprints/
+docs/ADJUST_MARKER.md
+docs/DESIGN-UI.md
+docs/DIAGRAM-PROMPT.md
+docs/frontend-assistant-guide.md
+docs/*assistant-guide.md
+docs/*-internal.md
 
 # --- TEMP & CACHE ---
 *.tmp

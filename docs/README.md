@@ -9,7 +9,7 @@
 
 | Folder | Isi | Masuk GitHub? |
 |--------|-----|---------------|
-| `docs/sprints/` | Sprint plan, progress log, daily notes | ✅ Ya |
+| `docs/sprints/` | Sprint plan, progress log, daily notes | ❌ Tidak — internal build notes |
 | `docs/architecture/` | System + agentic flow diagram | ✅ Ya |
 | `docs/evaluation/` | Failure cases + benchmark | ✅ Ya |
 | `docs/agentic-traces/` | Trace JSON evidence (tiap capture) | ✅ Ya |
@@ -33,6 +33,7 @@
 - ❌ Model files (.onnx, .pt — terlalu besar)
 - ❌ Upload evidence (foto warga)
 - ❌ `.workbuddy-ai/` (session memory)
+- ❌ `.claude/` dan `AGENTS.md` (agent/developer instructions)
 - ❌ `media/evidence/` lokal (foto demo/dev — regen via seed)
 - ❌ `db.sqlite3` (database lokal — schema via migrations)
 
