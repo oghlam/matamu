@@ -1,11 +1,15 @@
 import json
 import math
+from pathlib import Path
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import Avg, Count
+from django.http import FileResponse, Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+
+from django.conf import settings
 
 from api.storage import delete_evidence
 from observations.models import FollowUp, Observation
@@ -61,6 +65,12 @@ def overview(request):
     for r in map_rows:
         if r.get("created_at"):
             r["created_at"] = r["created_at"].isoformat()
+    # Dashboard images go through an authenticated Django endpoint instead of
+    # the public /media/ alias. This avoids Nginx filesystem permission/alias
+    # differences while keeping evidence protected behind dashboard login.
+    for r in map_rows:
+        if r.get("evidence_url"):
+            r["evidence_url"] = f"/dashboard/evidence/{r['id']}/"
     map_rows = _json_safe(map_rows)
     # focus = most recent published WITH valid coords → Location detail card
     # (a NaN-coord row must never become the card: it renders "nan,nan")
@@ -95,6 +105,23 @@ def overview(request):
         "arc_mid_end": arc_mid_end,
         "page": "overview",
     })
+
+
+@login_required
+def evidence_image(request, pk):
+    """Serve one evidence image to an authenticated dashboard user."""
+    obs = get_object_or_404(Observation, pk=pk)
+    url = obs.evidence_url or ""
+    if url.startswith("http://") or url.startswith("https://"):
+        return HttpResponseRedirect(url)
+    if not url.startswith("/media/"):
+        raise Http404("Evidence is not stored locally")
+
+    root = Path(settings.MEDIA_ROOT).resolve()
+    image_path = (root / url.removeprefix("/media/")).resolve()
+    if root not in image_path.parents or not image_path.is_file():
+        raise Http404("Evidence image not found")
+    return FileResponse(image_path.open("rb"), content_type="image/jpeg")
 
 
 @login_required

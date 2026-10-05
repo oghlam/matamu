@@ -48,12 +48,12 @@
     <!-- Evidence thumbnail — click for full inspection modal -->
     {% if obs.evidence_url|slice:":4" == "http" or obs.evidence_url|slice:":1" == "/" %}
     <button type="button"
-            data-url="{{ obs.evidence_url }}"
+            data-url="{% url 'dashboard:evidence_image' obs.id %}"
             data-cap="{{ obs.location_label|default:'Evidence'|escape }}"
             onclick="openIqeModal(this.dataset.url, this.dataset.cap)"
             class="block w-full rounded-lg overflow-hidden border border-gray-100 hover:opacity-95 transition-opacity"
             aria-label="Inspect evidence photo">
-      <img src="{{ obs.evidence_url }}" alt="Evidence photo"
+      <img src="{% url 'dashboard:evidence_image' obs.id %}" alt="Evidence photo"
            class="w-full h-36 object-cover" loading="lazy">
     </button>
     {% else %}

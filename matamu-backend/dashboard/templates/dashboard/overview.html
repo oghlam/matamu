@@ -180,7 +180,7 @@
          Toggle "AI" overlays YOLO bounding boxes on the raw photo. -->
     <div class="bg-surface rounded-xl shadow-float overflow-hidden">
       <div id="ev-wrap" class="relative{% if focus_obs.evidence_url|slice:":4" == "http" or focus_obs.evidence_url|slice:":1" == "/" %}{% else %} hidden{% endif %}">
-        <img id="ev-img"{% if focus_obs.evidence_url|slice:":4" == "http" or focus_obs.evidence_url|slice:":1" == "/" %} src="{{ focus_obs.evidence_url }}"{% endif %} alt="Evidence photo"
+        <img id="ev-img"{% if focus_obs.evidence_url|slice:":4" == "http" or focus_obs.evidence_url|slice:":1" == "/" %} src="{% url 'dashboard:evidence_image' focus_obs.id %}"{% endif %} alt="Evidence photo"
              class="w-full h-44 md:h-full md:min-h-[168px] md:max-h-[190px] object-cover">
         <svg id="ev-overlay" class="absolute inset-0 hidden w-full h-full pointer-events-none"></svg>
         <button id="ev-toggle" type="button" aria-label="Toggle AI detection overlay"
@@ -622,7 +622,7 @@ function selectObs(o) {
   setToggle(false);
   evToggle.style.display = currentBoxes.length ? '' : 'none';
   if (u.startsWith('http') || u.startsWith('/')) {
-    evImg.src = u;
+    evImg.src = u.startsWith('/media/') ? `/dashboard/evidence/${o.id}/` : u;
     evWrap.classList.remove('hidden');
     evEmpty.classList.add('hidden');
   } else {

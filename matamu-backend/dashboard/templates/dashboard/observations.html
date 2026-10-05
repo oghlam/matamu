@@ -69,7 +69,7 @@
           <td class="px-4 py-3 text-tm text-xs whitespace-nowrap">{{ page_obj.start_index|add:forloop.counter0 }}</td>
           <td class="px-4 py-3 min-w-[180px]">
             {% if obs.evidence_url|slice:":4" == "http" or obs.evidence_url|slice:":1" == "/" %}
-            <button type="button" data-url="{{ obs.evidence_url }}" data-cap="{{ obs.location_label|default:'Evidence'|escape }}" onclick="openObsModal(this.dataset.url, this.dataset.cap)" class="text-left w-full group">
+            <button type="button" data-url="{% url 'dashboard:evidence_image' obs.id %}" data-cap="{{ obs.location_label|default:'Evidence'|escape }}" onclick="openObsModal(this.dataset.url, this.dataset.cap)" class="text-left w-full group">
               <p class="font-medium text-tp text-[13px] leading-snug break-words group-hover:text-accent group-hover:underline">{{ obs.location_label|default:"—" }}</p>
               <p class="text-xs text-tm mt-0.5 whitespace-nowrap">{{ obs.lat|floatformat:4 }}, {{ obs.lng|floatformat:4 }}</p>
             </button>
