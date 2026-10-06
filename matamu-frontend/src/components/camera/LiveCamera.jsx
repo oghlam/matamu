@@ -85,14 +85,14 @@ export default function LiveCamera({ onCapture, onCancel }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-dark relative">
-      {/* Viewfinder — double tap to capture */}
-      <div className="flex-1 relative overflow-hidden min-h-0" onDoubleClick={takePhoto} onTouchEnd={handleViewfinderTap}>
+    <div className="flex-1 relative overflow-hidden min-h-0">
+      {/* Viewfinder — double tap to capture, full-bleed no frame */}
+      <div className="absolute inset-0 overflow-hidden" onDoubleClick={takePhoto} onTouchEnd={handleViewfinderTap}>
         <video
           ref={videoRef}
           playsInline
           muted
-          className="absolute inset-0 w-full h-full object-contain bg-dark"
+          className="absolute inset-0 w-full h-full object-cover"
         />
         {/* Scanline — full height sweep */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -113,6 +113,9 @@ export default function LiveCamera({ onCapture, onCancel }) {
         <p className="absolute top-3 left-1/2 -translate-x-1/2 text-[11px] font-semibold text-white bg-dark/60 rounded-full px-3 py-1 whitespace-nowrap">
           Center the damage in the circle
         </p>
+        <p className="absolute top-11 left-1/2 -translate-x-1/2 text-[11px] text-white/90 bg-dark/60 rounded-full px-3 py-1 whitespace-nowrap">
+          {ready ? 'Ready — double tap to capture' : 'Starting…'}
+        </p>
         {/* Cancel */}
         <button
           onClick={onCancel}
@@ -123,16 +126,14 @@ export default function LiveCamera({ onCapture, onCancel }) {
         </button>
       </div>
 
-      {/* Shutter bar — lifted above BottomNav, fully visible (double tap anywhere on viewfinder also captures) */}
-      <div className="shrink-0 flex items-center justify-center gap-6 pt-5 pb-24 md:pb-5 bg-dark">
-        <span className="text-[11px] text-white/60 w-16 text-right">
-          {ready ? 'Ready • double tap to capture' : 'Starting…'}
-        </span>
+      {/* Shutter bar — floating overlay, no frame */}
+      <div className="absolute bottom-24 md:bottom-6 left-0 right-0 flex items-center justify-center gap-6 pointer-events-none">
+        <span className="w-16" />
         <button
           onClick={takePhoto}
           disabled={!ready}
           aria-label="Take photo"
-          className="w-[72px] h-[72px] rounded-full border-4 border-white/90 bg-white/10 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40 shrink-0"
+          className="w-[72px] h-[72px] rounded-full border-4 border-white/90 bg-white/10 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40 shrink-0 pointer-events-auto"
         >
           <span className="w-14 h-14 rounded-full bg-accent flex items-center justify-center text-dark">
             <Camera size={26} />
