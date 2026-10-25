@@ -1,11 +1,12 @@
-"""LLM integration — LiteLLM proxy (local WSL) or Bedrock direct (EC2).
+"""Amazon Nova integration via LiteLLM or AWS Bedrock direct.
 
-ponytail: three modes in one file — 
-  1. LITELLM_BASE_URL set → proxy (local WSL `~/litellm/server-fast.py`)
-  2. else if AWS credentials available → boto3 bedrock-runtime direct (EC2 online)
-  3. else → heuristic mock (local dev without keys)
+Three modes are supported:
+  1. LITELLM_BASE_URL set → OpenAI-compatible LiteLLM proxy
+  2. AWS credentials available → Bedrock Converse API directly
+  3. otherwise → heuristic fallback for local development
 
-Set LITELLM_BASE_URL + LITELLM_API_KEY for mode 1, or AWS creds for mode 2.
+Nova Lite handles summaries and deduplication; Nova Pro handles multimodal
+severity assessment.
 """
 import os
 import logging
@@ -15,27 +16,27 @@ logger = logging.getLogger(__name__)
 
 LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "")
 LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", "sk-local")
-HAIKU_MODEL = os.getenv("HAIKU_MODEL", "bedrock-claude-haiku-4-5")
-# Bedrock Sonnet 4.5 — multimodal severity assessment (replaces Gemini 3.7 Flash)
-# Keep GEMINI_MODEL env for backward compat, prefer SONNET_MODEL.
-SONNET_MODEL = os.getenv("SONNET_MODEL", os.getenv("GEMINI_MODEL", "bedrock-claude-sonnet-4-5"))
+# Backward-compatible variable names; values now point exclusively to Amazon Nova.
+SUMMARY_MODEL = os.getenv("SUMMARY_MODEL", os.getenv("HAIKU_MODEL", "amazon.nova-lite-v1:0"))
+SEVERITY_MODEL = os.getenv(
+    "SEVERITY_MODEL",
+    os.getenv("SONNET_MODEL", os.getenv("GEMINI_MODEL", "amazon.nova-pro-v1:0")),
+)
+HAIKU_MODEL = SUMMARY_MODEL
+SONNET_MODEL = SEVERITY_MODEL
 
-# Bedrock direct — region & modelId mapping (litellm alias → real Bedrock id)
-_BEDROCK_HAIKU_ID = os.getenv("BEDROCK_HAIKU_ID", "global.anthropic.claude-haiku-4-5-20251001-v1:0")
-_BEDROCK_SONNET_ID = os.getenv("BEDROCK_SONNET_ID", "us.anthropic.claude-sonnet-4-5-20250929-v1:0")
-_BEDROCK_HAIKU_REGION = os.getenv("BEDROCK_HAIKU_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
-_BEDROCK_SONNET_REGION = os.getenv("BEDROCK_SONNET_REGION", "us-west-2")
-_ALIAS_TO_BEDROCK = {
-    "bedrock-claude-haiku-4-5": _BEDROCK_HAIKU_ID,
-    "bedrock-claude-sonnet-4-5": _BEDROCK_SONNET_ID,
-    "bedrock-claude-sonnet-4-6": "us.anthropic.claude-sonnet-4-6",
-}
+_BEDROCK_SUMMARY_ID = os.getenv("BEDROCK_SUMMARY_ID", SUMMARY_MODEL)
+_BEDROCK_SEVERITY_ID = os.getenv("BEDROCK_SEVERITY_ID", SEVERITY_MODEL)
+_BEDROCK_SUMMARY_REGION = os.getenv("BEDROCK_SUMMARY_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
+_BEDROCK_SEVERITY_REGION = os.getenv("BEDROCK_SEVERITY_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
 
 
-def _resolve_bedrock_model(alias: str) -> str:
-    if "anthropic." in alias or alias.startswith("global.") or alias.startswith("us."):
-        return alias
-    return _ALIAS_TO_BEDROCK.get(alias, alias)
+def _resolve_bedrock_model(model_id: str) -> str:
+    """Return a Nova model ID; reject legacy Claude IDs instead of silently using them."""
+    if "claude" in model_id.lower() or "anthropic." in model_id.lower():
+        logger.warning("Legacy Claude model configured (%s); using Amazon Nova fallback", model_id)
+        return "amazon.nova-lite-v1:0"
+    return model_id
 
 
 def _client():
@@ -71,7 +72,7 @@ def _bedrock_converse(model_id: str, region: str, prompt: str, img_bytes: bytes 
 
 
 def haiku_summary(detected_class: str, confidence: float, severity: str, location: str = "") -> str:
-    """Haiku 4.5: one-sentence condition summary from detection results (English)."""
+    """Amazon Nova Lite: one-sentence condition summary from detection results."""
     prompt = (
         f"Summarize the road condition in 1 English sentence (max 20 words). "
         f"Detection: {detected_class}, confidence: {confidence:.0%}, severity: {severity}. "
@@ -91,8 +92,8 @@ def haiku_summary(detected_class: str, confidence: float, severity: str, locatio
         except Exception as e:
             logger.warning("haiku_summary via litellm failed: %s", e)
     # 2. Bedrock direct (EC2)
-    bedrock_id = _resolve_bedrock_model(HAIKU_MODEL)
-    text = _bedrock_converse(bedrock_id, _BEDROCK_HAIKU_REGION, prompt, max_tokens=60)
+    bedrock_id = _resolve_bedrock_model(_BEDROCK_SUMMARY_ID)
+    text = _bedrock_converse(bedrock_id, _BEDROCK_SUMMARY_REGION, prompt, max_tokens=60)
     if text:
         return text
     # 3. mock
@@ -106,7 +107,7 @@ def gemini_severity(detected_class: str, confidence: float, img_bytes: bytes = N
 
 
 def sonnet_severity(detected_class: str, confidence: float, img_bytes: bytes = None) -> dict:
-    """Bedrock Claude Sonnet 4.5: multimodal severity assessment.
+    """Amazon Nova Pro: multimodal severity assessment.
 
     Returns {"severity": "low|medium|high", "reasoning": str}
     """
@@ -141,8 +142,8 @@ def sonnet_severity(detected_class: str, confidence: float, img_bytes: bytes = N
         except Exception as e:
             logger.warning("sonnet_severity via litellm failed: %s", e)
     # 2. Bedrock direct (EC2) — multimodal via converse
-    bedrock_id = _resolve_bedrock_model(SONNET_MODEL)
-    raw = _bedrock_converse(bedrock_id, _BEDROCK_SONNET_REGION, text_prompt, img_bytes=img_bytes, max_tokens=80)
+    bedrock_id = _resolve_bedrock_model(_BEDROCK_SEVERITY_ID)
+    raw = _bedrock_converse(bedrock_id, _BEDROCK_SEVERITY_REGION, text_prompt, img_bytes=img_bytes, max_tokens=80)
     if raw:
         try:
             import json
@@ -161,7 +162,7 @@ def sonnet_severity(detected_class: str, confidence: float, img_bytes: bytes = N
 
 
 def haiku_dedup_hint(detected_class: str, nearby_count: int, location: str = "") -> str:
-    """Haiku 4.5: dedup hint when 3+ reports in same area."""
+    """Amazon Nova Lite: dedup hint when 3+ reports are in the same area."""
     if nearby_count < 3:
         return ""
     prompt = (
@@ -180,7 +181,7 @@ def haiku_dedup_hint(detected_class: str, nearby_count: int, location: str = "")
             return resp.choices[0].message.content.strip()
         except Exception as e:
             logger.warning("haiku_dedup_hint via litellm failed: %s", e)
-    text = _bedrock_converse(_resolve_bedrock_model(HAIKU_MODEL), _BEDROCK_HAIKU_REGION, prompt, max_tokens=40)
+    text = _bedrock_converse(_resolve_bedrock_model(_BEDROCK_SUMMARY_ID), _BEDROCK_SUMMARY_REGION, prompt, max_tokens=40)
     if text:
         return text
     return f"{nearby_count} existing {detected_class} reports in this area."

@@ -56,7 +56,7 @@ Not just one model — **6 perception signals**:
 | Quality Check | IQE (Laplacian blur + brightness) | Reject blurry/dark photos |
 | Privacy Protection | SFace + YuNet | Detect & blur faces before storage |
 | Structured Reasoning | TypeSafe AI (5 parallel questions) | Severity, urgency, recurrence analysis |
-| Severity Assessment | Bedrock Claude Sonnet 4.5 | Deep multimodal reasoning (fallback) |
+| Severity Assessment | Amazon Nova Pro | Deep multimodal reasoning (fallback) |
 | Spatial Context | PostGIS ST_DWithin | Detect recurring damage clusters |
 
 **Output:** Rich context vector (not just "pothole 0.88 conf")
@@ -106,7 +106,7 @@ System doesn't wait for human — **executes immediately**:
 
 **If PUBLISHED:**
 - ✅ Update database status
-- ✅ Generate AI summary (Bedrock Haiku: 1-sentence English)
+- ✅ Generate AI summary (Amazon Nova Lite: 1-sentence English)
 - ✅ If severity=high → queue alert to operator dashboard
 - ✅ If nearby_count ≥ 3 → create recurring follow-up task
 - ✅ Write trace JSON (audit evidence)
@@ -150,7 +150,7 @@ System doesn't wait for human — **executes immediately**:
 
 ### Cost Efficiency
 - **Operator hours saved**: 6.5 hours/day per operator
-- **LLM cost optimization**: TypeSafe (fast path) for 80% cases, Bedrock (detailed reasoning) only for ambiguous 20%
+- **LLM cost optimization**: TypeSafe (fast path) for 80% cases, Amazon Nova (detailed reasoning) only for ambiguous 20%
 - **Human expertise allocation**: supervisors focus on edge cases (where human judgment matters), not repetitive validation
 
 ### Trust & Accountability
@@ -180,7 +180,7 @@ Design goal: **"AI that works in the real world"**
 Mat(a)Mu doesn't just **detect** road damage — it:
 1. **Validates quality** (IQE trust score)
 2. **Protects privacy** (SFace blur)
-3. **Reasons about severity** (TypeSafe structured eval + Bedrock)
+3. **Reasons about severity** (TypeSafe structured eval + Amazon Nova)
 4. **Detects patterns** (PostGIS recurring clusters)
 5. **Routes intelligently** (confidence-gated decision)
 6. **Acts autonomously** (auto-publish + alert + follow-up)
@@ -299,7 +299,7 @@ log_trace(perception, decision, action)
 
 ### Explainability
 - **TypeSafe structured eval**: 5 questions + confidence per answer
-- **Bedrock reasoning**: LLM explains severity assessment
+- **Amazon Nova reasoning**: LLM explains severity assessment
 - **Decision reason logged**: "TypeSafe conf=0.88 ≥ 0.7 → auto-publish"
 - **Trace JSON**: full audit trail (perception → decision → action)
 

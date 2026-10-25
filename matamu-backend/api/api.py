@@ -211,7 +211,7 @@ def capture(request, lat: float, lng: float,
         # 4. Geocoding
         location_label = reverse_geocode(lat, lng)
 
-        # 5. Bedrock: severity (Sonnet 4.5) + summary (Haiku 4.5)
+        # 5. Amazon Nova: severity (Nova Pro) + summary (Nova Lite)
         with open(blurred_path, "rb") as f:
             img_bytes = f.read()
         sonnet_result = sonnet_severity(detected_class, confidence, img_bytes)

@@ -39,9 +39,9 @@
 │  │   ├── 5. Google Maps Geocoding (reverse geocode)           │   │
 │  │   │                                                         │   │
 │  │   ├── 6. LiteLLM Proxy                                     │   │
-│  │   │      ├── Haiku 4.5 → condition summary (English)       │   │
-│  │   │      ├── Sonnet 4.5 → severity assessment (vision)    │   │
-│  │   │      └── Haiku 4.5 → dedup hint (recurring)           │   │
+│  │   │      ├── Nova Lite → condition summary (English)       │   │
+│  │   │      ├── Nova Pro → severity assessment (vision)    │   │
+│  │   │      └── Nova Lite → dedup hint (recurring)           │   │
 │  │   │                                                         │   │
 │  │   ├── 7. TypeSafe AI (5 parallel structured questions)     │   │
 │  │   │      ├── severity  (Score, calibrated confidence)      │   │
@@ -78,7 +78,7 @@
                ▼                              ▼
 ┌──────────────────────┐     ┌──────────────────────────────────────┐
 │  AWS S3              │     │  External Services (server-side only) │
-│  matamu-evidence     │     │  ├── AWS Bedrock Haiku 4.5 + Sonnet 4.5│
+│  matamu-evidence     │     │  ├── AWS Bedrock Amazon Nova Lite + Nova Pro│
 │  ├── /evidence/*.jpg │     │  ├── TypeSafe AI (jev-latest)         │
 │  │   (blurred only)  │     │  └── via LiteLLM proxy                │
 │  └── lifecycle: 30d  │     └──────────────────────────────────────┘
@@ -99,7 +99,7 @@ Laplacian variance           → image blur quality score (IQE)
 
 ```
 [Photo + GPS] → OpenCV DNN → IQE → SFace → S3 → Geocode →
-LiteLLM (Haiku+Sonnet) → TypeSafe → Agentic Loop →
+LiteLLM (Nova Lite+Nova Pro) → TypeSafe → Agentic Loop →
 DB (Observation) → [published | pending_verification]
 ```
 

@@ -43,8 +43,8 @@ The pilot context is Jalan Lingkar Timur, Sidoarjo, East Java, Indonesia. The de
 
 ### Language and multimodal reasoning
 
-- Haiku generates a concise condition summary.
-- Bedrock Sonnet is used for severity reasoning when configured.
+- Amazon Nova Lite generates a concise condition summary.
+- Amazon Nova Pro is used for multimodal severity reasoning.
 - TypeSafe AI evaluates structured questions about severity, urgency, photo quality, and recurrence.
 - The system supports a local/mock fallback so the core workflow remains testable without a live model proxy.
 
@@ -85,7 +85,7 @@ Django / Django Ninja API
         +--> IQE -----------------------> trust score
         +--> YuNet/SFace ----------------> privacy-blurred evidence
         +--> PostGIS --------------------> nearby/recurring context
-        +--> TypeSafe / Bedrock ----------> structured reasoning
+        +--> TypeSafe / Amazon Nova ------> structured reasoning
         |
         v
 Agentic confidence gates
@@ -96,7 +96,7 @@ Agentic confidence gates
         v
 Public Map + Operator Dashboard + JSON Trace
 
-AWS: EC2 application/CV runtime, S3 blurred evidence, Bedrock reasoning, IAM controls.
+AWS: EC2 application/CV runtime, S3 blurred evidence, Amazon Nova reasoning on Bedrock, IAM controls.
 ```
 
 Detailed diagrams:
@@ -191,9 +191,9 @@ See [failure cases and evaluation evidence](docs/evaluation/failure-cases.md) an
 - YOLOv11n can miss small, occluded, or edge-of-frame defects.
 - Shadows and paint markings can produce false-positive pothole detections.
 - Low-light images are intentionally routed to review instead of being auto-published.
-- Local testing uses mock model fallbacks when LiteLLM/Bedrock is unavailable; production claims must be demonstrated on the public deployment.
+- Local testing uses heuristic model fallbacks when LiteLLM/Bedrock is unavailable; production claims must be demonstrated on the public deployment.
 - Demo coordinates are controlled pilot data and should not be presented as a statistically representative city-wide survey.
-- The public endpoint, final production benchmark, and video URL still need to be filled into this document.
+- The final production benchmark and public video URL still need to be filled into this document.
 
 ## Official Devpost Form Fields
 
@@ -204,7 +204,8 @@ See [failure cases and evaluation evidence](docs/evaluation/failure-cases.md) an
 | Testing instructions | Use the instructions in this document and `docs/devpost/TESTING.md`. |
 | Working web endpoint | `https://matamu.32-193-23-154.nip.io` and `https://matamu-dash.32-193-23-154.nip.io/dashboard` |
 | Required video | `[TODO: public/unlisted video URL, <= 5 minutes]` |
-| Required archive/zip | `[TODO: create judge-accessible archive if Devpost asks for upload]` |
+| Technical report PDF | `artifacts/Mat_a_Mu_Technical_Report.pdf` |
+| Judge archive/zip | `artifacts/Mat_a_Mu_Judge_Package_Sanitized_v5_20261026.zip` - sanitized package; no credentials, local databases, private keys, or dependency folders |
 
 ## Submission Readiness
 
@@ -214,8 +215,8 @@ See [failure cases and evaluation evidence](docs/evaluation/failure-cases.md) an
 - [x] Agentic Vision evidence mapped to runtime traces and scenarios.
 - [x] Testing and failure-case documentation linked.
 - [x] Repository URL confirmed from Git remote.
-- [ ] Capture 3–5 final screenshots with captions.
-- [ ] Record and publish the <=5-minute demo video.
+- [x] Capture 3–5 final screenshots with captions; the selected gallery assets are listed in `docs/devpost/EVIDENCE-MATRIX.md` and `docs/devpost/README.md`.
+- [x] Record the <=5-minute demo video; publish it and paste the public/unlisted URL below.
 
 > Project documentation, local validation, and live demo URLs are ready. Before submitting, add the video URL and attach the selected screenshots/assets.
 

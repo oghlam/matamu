@@ -23,7 +23,7 @@ See `docs/architecture/system-architecture.md` for full diagram.
 **Stack:**
 - Backend: Django 5 + Django Ninja (REST API)
 - CV: OpenCV 5 + YOLOv11n (ONNX) + SFace (YuNet) + IQE
-- LLM: Haiku 4.5 (summary) + Bedrock Sonnet 4.5 (severity) via LiteLLM
+- LLM: Amazon Nova Lite (summary) + Amazon Nova Pro (severity) via LiteLLM/Bedrock
 - TypeSafe AI: 5-question structured evaluation (confidence-gated routing)
 - Storage: PostgreSQL 16 + PostGIS (geo queries) + AWS S3 (evidence)
 - Frontend: React + Vite PWA (citizen) + Django template dashboard (operator)
@@ -108,7 +108,7 @@ All submissions now use **live GPS + watermark** (desktop & mobile uniform behav
 |---------|-------|
 | EC2 t2.small | API + CV pipeline + LiteLLM proxy + PostgreSQL |
 | S3 (matamu-evidence) | Blurred evidence photos (30-day lifecycle) |
-| Bedrock (Haiku 4.5) | Road condition summary (English, 1 sentence) |
+| Amazon Nova Lite | Road condition summary (English, 1 sentence) |
 | IAM (matamu-s3-access) | Least-privilege S3 read/write |
 
 **Note**: The public application is deployed online. Local validation also supports mock fallbacks when the live model proxy is unavailable.
@@ -139,7 +139,7 @@ Summary (full detail in `docs/evaluation/failure-cases.md`):
 2. **False negative**: small/edge potholes missed by YOLOv11n nano — human review via IQE queue
 3. **Dark photos**: trust score penalizes low brightness → pending_verification (intentional)
 4. **GPS inaccuracy**: pipeline continues; `lat=0,lng=0` handled gracefully
-5. **Bedrock timeout**: mock fallback in all LLM calls, no crash
+5. **Amazon Nova timeout**: heuristic fallback in all LLM calls, no crash
 6. **SFace false blur**: threshold 0.6 conservative; 0 false blurs in 6 photos
 
 ---
@@ -148,7 +148,7 @@ Summary (full detail in `docs/evaluation/failure-cases.md`):
 
 - **Privacy**: SFace blurs faces before publication. Original photos never stored or served.
 - **Human oversight**: the IQE queue requires an operator to accept or reject low-trust observations.
-- **Explainability**: Haiku summary + TypeSafe structured eval + agentic trace per observation.
+- **Explainability**: Nova Lite summary + TypeSafe structured eval + agentic trace per observation.
 - **Rate limiting**: 10 captures/min/IP to prevent abuse.
 - **Transparency**: all confidence gates documented and configurable.
 

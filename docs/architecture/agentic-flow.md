@@ -67,7 +67,7 @@ CAPTURE
 │                                         │
 │  PUBLISHED:                             │
 │  ├── status = published                 │
-│  ├── Haiku 4.5: summary (1 sentence)   │
+│  ├── Nova Lite: summary (1 sentence)   │
 │  ├── IF severity high/critical:         │
 │  │   └── high_severity_alert_queued     │
 │  └── IF nearby_count >= 3 OR            │

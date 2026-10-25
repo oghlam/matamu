@@ -1,0 +1,29 @@
+Mat(a)Mu — Agentic Scenario Runner output (EC2 krusetre, 2026-10-06)
+Command: PYTHONIOENCODING=utf-8 /home/ec2-user/matamu-env/bin/python docs/agentic_scenario_runner.py
+CWD: /home/ec2-user/matamu/matamu-backend
+================================================================
+
+[PASS] Scenario A: High confidence + high trust -> auto-publish
+       photo=lingkar-timur3.jpeg  conf=88%  trust=0.88  faces=0
+       result -> published
+       reason: TypeSafe severity confidence=0.88 >= 0.7 — auto-publish
+
+[PASS] Scenario B: Low YOLO confidence -> pending_verification (human review)
+       photo=lingkar-timur1.jpeg  conf=28%  trust=0.60  faces=0
+       result -> pending_verification
+       reason: low YOLO confidence (28%) — needs human review
+
+[PASS] Scenario C: 3+ reports same area -> recurring flag + follow-up alert
+       photo=lingkar-timur4.jpeg  conf=79%  trust=0.79  faces=0
+       result -> published
+       reason: TypeSafe severity confidence=0.79 >= 0.7 — auto-publish + recurring (nearby=0.90)
+
+[PASS] Scenario D: SFace detects faces -> blur applied before publish
+       photo=lingkar-timur5.jpeg  conf=78%  trust=0.83  faces=2
+       result -> published
+       reason: TypeSafe severity confidence=0.78 >= 0.7 — auto-publish
+
+============================================================
+Overall: ALL PASS (4/4)
+Summary written -> /home/ec2-user/matamu/docs/agentic-traces/scenario_summary.json
+Trace files: 68

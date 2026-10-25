@@ -1,6 +1,7 @@
 @echo off
 title Mat(a)Mu - Dev Server
 color 0A
+set "ROOT=%~dp0"
 
 echo.
 echo.
@@ -18,7 +19,7 @@ if %errorlevel%==0 (
 
 :: --- Start Django backend (new window) ---
 echo  [1/2] Menjalankan Django backend di http://127.0.0.1:8080 ...
-start "Mat(a)Mu Backend" cmd /k "cd /d C:\laragon\www\matamu\matamu-backend && venv\Scripts\python.exe manage.py runserver 8080"
+start "Mat(a)Mu Backend" cmd /k "cd /d ""%ROOT%matamu-backend"" && venv\Scripts\python.exe manage.py runserver 8080"
 
 :: --- Wait for Django to start ---
 echo  [..] Menunggu backend siap (5 detik)...
@@ -26,7 +27,7 @@ timeout /t 5 /nobreak >nul
 
 :: --- Start React PWA frontend (new window) ---
 echo  [2/2] Menjalankan React PWA di http://localhost:5173 ...
-start "Mat(a)Mu Frontend" cmd /k "cd /d C:\laragon\www\matamu\matamu-frontend && npm run dev"
+start "Mat(a)Mu Frontend" cmd /k "cd /d ""%ROOT%matamu-frontend"" && npm run dev"
 
 :: --- Done ---
 echo.
@@ -39,7 +40,6 @@ echo   API Docs            : http://127.0.0.1:8080/api/docs
 echo.
 echo   Frontend (PWA Warga): http://localhost:5173
 echo.
-echo   Login dashboard : admin / <redacted-password>
 echo  ================================================
 echo.
 echo  Tekan Enter untuk membuka dashboard di browser...

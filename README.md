@@ -14,7 +14,7 @@
 ![TypeSafe AI](https://img.shields.io/badge/TypeSafe_AI-eval-6B7280)
 ![TomTom](https://img.shields.io/badge/TomTom-traffic-DF1B12?logo=tomtom&logoColor=white)
 ![Cesium Ion](https://img.shields.io/badge/Cesium_Ion-3D_tiles-2196F3?logo=cesium&logoColor=white)
-![AWS Bedrock](https://img.shields.io/badge/AWS_Bedrock-Sonnet_Haiku-FF9900?logo=amazon&logoColor=white)
+![Amazon Nova](https://img.shields.io/badge/Amazon_Nova-Lite_Pro-FF9900?logo=amazon&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-EC2_S3-232F3E?logo=amazon&logoColor=white)
 
 ![Mat(a)Mu agentic pipeline diagram](docs/matamu-agentic-diagram.png)
@@ -53,6 +53,30 @@ Mat(a)Mu ("Mata Jalan Mu" — Your Road Eyes) is a PWA that turns citizens into 
 
 ---
 
+## Product Screenshots
+
+The following screenshots show the citizen PWA, public map, evidence detail, operator dashboard, follow-up workflow, and Agentic Vision trace.
+
+<table>
+  <tr>
+    <td><img src="docs/devpost/screenshots/01-pwa-public-map.png" alt="Mat(a)Mu public map" /></td>
+    <td><img src="docs/devpost/screenshots/02-pwa-capture.png" alt="Mat(a)Mu capture flow" /></td>
+    <td><img src="docs/devpost/screenshots/03-pwa-my-reports.png" alt="Mat(a)Mu reports" /></td>
+  </tr>
+  <tr>
+    <td><img src="docs/devpost/screenshots/04-pwa-evidence-detail.png" alt="Mat(a)Mu evidence detail" /></td>
+    <td><img src="docs/devpost/screenshots/06-dashboard-overview.png" alt="Mat(a)Mu dashboard overview" /></td>
+    <td><img src="docs/devpost/screenshots/07-dashboard-agentic-trace.png" alt="Mat(a)Mu Agentic Vision trace" /></td>
+  </tr>
+  <tr>
+    <td><img src="docs/devpost/screenshots/08-dashboard-followup.png" alt="Mat(a)Mu follow-up dashboard" /></td>
+    <td><img src="docs/devpost/screenshots/09-pwa-map-mobile.png" alt="Mat(a)Mu mobile map" /></td>
+    <td><img src="docs/devpost/screenshots/10-pwa-capture-mobile.png" alt="Mat(a)Mu mobile capture" /></td>
+  </tr>
+</table>
+
+---
+
 ## 🚀 Key Features
 
 ### 1. **Agentic Decision Loop**
@@ -66,7 +90,7 @@ Mat(a)Mu ("Mata Jalan Mu" — Your Road Eyes) is a PWA that turns citizens into 
 - **IQE**: blur + brightness quality check
 - **SFace + YuNet**: face detection + auto-blur (privacy-by-design)
 - **TypeSafe AI**: structured 5-question eval (severity, urgency, recurrence)
-- **Bedrock Sonnet 4.5**: deep multimodal reasoning (fallback)
+- **Amazon Nova Pro**: multimodal severity reasoning (fallback)
 - **PostGIS**: spatial clustering (recurring damage detection)
 
 ### 3. **Production-Ready Safeguards**
@@ -84,7 +108,7 @@ Mat(a)Mu ("Mata Jalan Mu" — Your Road Eyes) is a PWA that turns citizens into 
 - **Backend**: Django 5.1, Django Ninja 1.3.0, google-auth 2.58.0 (local SQLite; PostGIS on EC2) + Overpass proxy (`/api/overpass`)
 - **Frontend**: React 19, Vite 8.3.0, Tailwind 3.4.19, MapLibre GL 4.7.1, exifr, JetBrains Mono
 - **Map**: OpenFreeMap Bright (OSM data, keyless) + Esri World Imagery (keyless) + MapLibre 3D terrain (demotiles) + OpenFreeMap 3D buildings + Overpass roads + TomTom live traffic (via PowerUp) + Cesium Ion Bing (via PowerUp)
-- **LLM**: Haiku 4.5 (summary) + Bedrock Sonnet 4.5 (severity) via LiteLLM — local mock when the proxy is empty
+- **LLM**: Amazon Nova Lite (summary) + Amazon Nova Pro (severity) via LiteLLM/Bedrock — local heuristic fallback when unavailable
 - **Agentic**: Perception → Decision → Action + TypeSafe confidence gating, trace JSON
 - **Storage**: S3 `matamu-evidence` (prod); local `/media/` (dev)
 

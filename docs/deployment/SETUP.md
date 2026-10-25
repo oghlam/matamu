@@ -12,18 +12,18 @@ The script updates the OS, installs Python 3.12 + venv and PostgreSQL 16 + PostG
 
 For a manual alternative, follow the commands in the script and the project deployment notes.
 
-## LiteLLM / Bedrock Test (S0-3)
+## LiteLLM / Amazon Nova Test (S0-3)
 
 On EC2, with the proxy running on port 4000:
 
 ```bash
 curl -X POST http://localhost:4000/v1/chat/completions -H "Content-Type: application/json" \
-  -d '{"model": "bedrock-claude-haiku-4-5", "messages": [{"role": "user", "content": "Hello"}]}'
+  -d '{"model": "amazon.nova-lite-v1:0", "messages": [{"role": "user", "content": "Hello"}]}'
 curl -X POST http://localhost:4000/v1/chat/completions -H "Content-Type: application/json" \
-  -d '{"model": "bedrock-claude-sonnet-4-5", "messages": [{"role": "user", "content": "Hello"}]}'
+  -d '{"model": "amazon.nova-pro-v1:0", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
-If LiteLLM is not running, start it with `litellm --config litellm_config.yaml` or check the systemd service.
+If LiteLLM is not running, start it with `litellm --config litellm_config.yaml` or check the systemd service. Direct Bedrock calls use the same Nova model IDs through the Converse API.
 
 ## Deploy (CI/CD)
 

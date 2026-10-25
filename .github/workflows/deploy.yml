@@ -74,6 +74,24 @@ jobs:
             sudo ln -sfn /home/ec2-user/matamu /var/www/matamu
             sudo find /var/www -maxdepth 2 -type d -exec chmod 0755 {} + 2>/dev/null || true
             if [ -f matamu-backend/.env ]; then
+              # Pin production LLMs to the available Amazon Nova models.
+              for entry in \
+                'SUMMARY_MODEL=amazon.nova-lite-v1:0' \
+                'SEVERITY_MODEL=amazon.nova-pro-v1:0' \
+                'HAIKU_MODEL=amazon.nova-lite-v1:0' \
+                'SONNET_MODEL=amazon.nova-pro-v1:0' \
+                'GEMINI_MODEL=amazon.nova-pro-v1:0' \
+                'BEDROCK_SUMMARY_ID=amazon.nova-lite-v1:0' \
+                'BEDROCK_SEVERITY_ID=amazon.nova-pro-v1:0' \
+                'BEDROCK_SUMMARY_REGION=us-east-1' \
+                'BEDROCK_SEVERITY_REGION=us-east-1'; do
+                key="${entry%%=*}"
+                if grep -q "^${key}=" matamu-backend/.env; then
+                  sudo sed -i "s|^${key}=.*|${entry}|" matamu-backend/.env
+                else
+                  printf '\\n%s\\n' "$entry" | sudo tee -a matamu-backend/.env >/dev/null
+                fi
+              done
               if grep -q '^MEDIA_ROOT=' matamu-backend/.env; then
                 sudo sed -i "s|^MEDIA_ROOT=.*|MEDIA_ROOT=$MEDIA_ROOT|" matamu-backend/.env
               else

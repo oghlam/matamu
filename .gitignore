@@ -14,6 +14,8 @@ cover-matamu-landscape.png
 .env
 .env.*
 *.env
+!.env.example
+!matamu-frontend/.env.example
 secrets.json
 credentials.json
 api_keys.json
@@ -128,9 +130,11 @@ docker-compose.override.yml
 docker-compose.local.yml
 
 # --- WORKBUDDY AI INTERNAL ---
+# Local agent state and instruction files; never part of the public application.
 .workbuddy-ai/
 .claude/
 AGENTS.md
+Road-Asset-Intelligence-Blueprint/
 
 # --- INTERNAL BUILD NOTES (keep locally, do not publish) ---
 docs/sprints/
@@ -146,6 +150,20 @@ docs/*-internal.md
 *.temp
 .cache/
 tmp/
+
+# --- GENERATED SUBMISSION ARTIFACTS ---
+# Upload these to Devpost separately; do not commit ZIP/PDF bundles into the source repo.
+artifacts/
+
+# --- LOCAL DEVPOST BUILD OUTPUT ---
+# Keep the curated evidence files and docs/devpost/screenshots/ publishable.
+docs/devpost/node_modules/
+docs/devpost/tmp/
+docs/devpost/pdf/
+docs/devpost/*.mp3
+docs/devpost/*.wav
+docs/devpost/*.zip
+docs/devpost/generate_audio.py
 
 # --- LOCAL ONLY (never push to GitHub) ---
 # Personal photos (contain EXIF GPS — privacy)

@@ -5,7 +5,7 @@
 - Python environment matching `matamu-backend/requirements.txt`.
 - Node.js and npm matching the frontend toolchain.
 - A local SQLite database is sufficient for the documented local test path.
-- AWS/Bedrock credentials are optional for local mock-mode tests and required for production-path verification.
+- AWS/Bedrock credentials are optional for local heuristic-fallback tests and required for production-path verification.
 
 ## Start the application
 
@@ -54,5 +54,6 @@ The checks cover normal capture, missing/invalid GPS, duplicate and nearby repor
 - Run the same flow from a network outside the deployment host.
 - Verify the public endpoint uses production authentication settings; do not use `BYPASS_AUTH=1` in the judge environment.
 - Verify only blurred evidence is publicly served.
+- Verify production LLM calls use Amazon Nova Lite and Nova Pro, not legacy Claude model IDs.
 - Verify the endpoint, repository, video, and archive are accessible without private credentials.
 - Record real production latency separately from the local mock-mode latency.
